@@ -1,0 +1,13 @@
+D:\GCSv2\GCSv2\bin\Debug\GCSv2.exe.config
+D:\GCSv2\GCSv2\bin\Debug\GCSv2.exe
+D:\GCSv2\GCSv2\bin\Debug\GCSv2.pdb
+D:\GCSv2\GCSv2\bin\Debug\GMap.NET.Core.dll
+D:\GCSv2\GCSv2\bin\Debug\GMap.NET.WindowsForms.dll
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.csprojAssemblyReference.cache
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.Form1.resources
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.Properties.Resources.resources
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.GenerateResource.cache
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.CoreCompileInputs.cache
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.CopyComplete
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.exe
+D:\GCSv2\GCSv2\obj\Debug\GCSv2.pdb
