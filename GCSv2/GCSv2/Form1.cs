@@ -305,7 +305,7 @@ namespace GCSv2
                         break;
                         
                     default:
-                        MessageBox.Show("Invalid selection. Please select UAV.");
+                        MessageBox.Show("Invalid selection. Please select UAV.","Target needed.",MessageBoxButtons.OK,MessageBoxIcon.Warning);
                         break;
                 }
             }
@@ -328,7 +328,7 @@ namespace GCSv2
                     points3.Clear();
                     break;
                 default:
-                    MessageBox.Show("Invalid selection. Please select UAV.");
+                    MessageBox.Show("Invalid selection. Please select UAV.", "Target needed.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     break;
             }
         }
