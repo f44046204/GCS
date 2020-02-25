@@ -9,11 +9,16 @@ using GMap.NET.MapProviders;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
 using System.Collections.Generic;
+using System.Data;
 
 namespace GCSv2
 {
     public partial class Form1 : Form
     {
+        public DataTable dt1 = new DataTable("Waypoints1");
+        public DataTable dt2 = new DataTable("Waypoints2");
+        public DataTable dt3 = new DataTable("Waypoints3");
+
         public double[] nedP1 = new double[3];
         public double[] nedP2 = new double[3];
         public double[] difP1P2 = new double[3];
@@ -247,7 +252,7 @@ namespace GCSv2
                     case "UAV1":
                         PointLatLng point = gMapControl1.FromLocalToLatLng(e.X, e.Y);
                         GMapMarker marker = new GMarkerGoogle(point, GMarkerGoogleType.blue);
-                        marker.ToolTipText = Convert.ToString(markers1.Markers.Count + 1);
+                        marker.ToolTipText = Convert.ToString(markers1.Markers.Count +1);
                         marker.ToolTip.Fill = Brushes.Transparent;
                         marker.ToolTip.Offset = new Point(marker.LocalPosition.X - 18, marker.LocalPosition.Y - 15);
                         marker.ToolTip.Stroke.Color = Color.Transparent;
@@ -256,18 +261,21 @@ namespace GCSv2
                         marker.ToolTipMode = MarkerTooltipMode.Always;
                         markers1.Markers.Add(marker);
                         points1.Add(point);
-
+                        
                         if (markers1.Markers.Count > 1)
                         {
                             route1 = new GMapRoute(points1, "route1");
                             markers1.Routes.Add(route1);
                         }
+                        
+                        dt1.Rows.Add(new Object[] { (markers1.Markers.Count - 1), (int)(point.Lat* 10000000), (int)(point.Lng* 10000000), 30, 0 });
+                        
                         break;
 
                     case "UAV2":
                         PointLatLng point2 = gMapControl1.FromLocalToLatLng(e.X, e.Y);
                         GMapMarker marker2 = new GMarkerGoogle(point2, GMarkerGoogleType.red);
-                        marker2.ToolTipText = Convert.ToString(markers2.Markers.Count + 1);
+                        marker2.ToolTipText = Convert.ToString(markers2.Markers.Count +1);
                         marker2.ToolTip.Fill = Brushes.Transparent;
                         marker2.ToolTip.Offset = new Point(marker2.LocalPosition.X - 18, marker2.LocalPosition.Y - 15);
                         marker2.ToolTip.Stroke.Color = Color.Transparent;
@@ -282,12 +290,15 @@ namespace GCSv2
                             route2 = new GMapRoute(points2, "route2");
                             markers2.Routes.Add(route2);
                         }
+
+                        dt2.Rows.Add(new Object[] { (markers2.Markers.Count - 1), (int)(point2.Lat * 10000000), (int)(point2.Lng * 10000000), 30, 0 });
+
                         break;
 
                     case "UAV3":
                         PointLatLng point3 = gMapControl1.FromLocalToLatLng(e.X, e.Y);
                         GMapMarker marker3 = new GMarkerGoogle(point3, GMarkerGoogleType.green);
-                        marker3.ToolTipText = Convert.ToString(markers3.Markers.Count + 1);
+                        marker3.ToolTipText = Convert.ToString(markers3.Markers.Count +1);
                         marker3.ToolTip.Fill = Brushes.Transparent;
                         marker3.ToolTip.Offset = new Point(marker3.LocalPosition.X - 18, marker3.LocalPosition.Y - 15);
                         marker3.ToolTip.Stroke.Color = Color.Transparent;
@@ -302,6 +313,9 @@ namespace GCSv2
                             route3 = new GMapRoute(points3, "route3");
                             markers3.Routes.Add(route3);
                         }
+
+                        dt3.Rows.Add(new Object[] { (markers3.Markers.Count - 1), (int)(point3.Lat * 10000000), (int)(point3.Lng * 10000000), 30, 0 });
+
                         break;
                         
                     default:
@@ -318,19 +332,91 @@ namespace GCSv2
                 case "UAV1":
                     markers1.Clear();
                     points1.Clear();
+                    dt1.Clear();
                     break;
                 case "UAV2":
                     markers2.Clear();
                     points2.Clear();
+                    dt2.Clear();
                     break;
                 case "UAV3":
                     markers3.Clear();
                     points3.Clear();
+                    dt3.Clear();
                     break;
                 default:
                     MessageBox.Show("Invalid selection. Please select UAV.", "Target needed.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                     break;
             }
+        }
+
+        private void dataGridView2_RowHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if(e.Button==MouseButtons.Right)
+            {
+                dataGridView2.Rows[e.RowIndex].Selected = true;
+                contextMenuStrip1.Show(ToolStripDropDown.MousePosition) ;
+            }
+        }
+
+        private void toolStripMenuItem1_Click(object sender, EventArgs e)
+        {
+            DialogResult dr = MessageBox.Show("確認刪除?", "提示", MessageBoxButtons.OKCancel);
+            if (dr == DialogResult.OK)
+            {
+                    int count;
+
+                    foreach (DataRow row in dt1.Rows)
+                    {
+                        int seq;
+                        if (Convert.ToInt32(row.ItemArray[0]) > Convert.ToInt32(dt1.Rows[dataGridView2.CurrentRow.Index].ItemArray[0]))
+                        {
+                            seq = Convert.ToInt32(row[0]) - 1;
+                            row[0] = seq;
+                            markers1.Markers[Convert.ToInt32(row.ItemArray[0])].ToolTipText = Convert.ToString(seq);
+                        }
+                    }
+
+                    dt1.Rows.RemoveAt(dataGridView2.CurrentRow.Index);
+                    markers1.Markers.RemoveAt(dataGridView2.CurrentRow.Index);
+                    markers1.Routes.Clear();
+                    points1.RemoveAt(dataGridView2.CurrentRow.Index);
+                    GMapRoute newRoute = new GMapRoute(points1, "route1");
+                    markers1.Routes.Add(newRoute);
+
+                    count = markers1.Markers.Count;
+                    markers1.Markers[count - 1].ToolTipText = Convert.ToString(count);
+                
+            }
+        }
+
+        private void Form1_Load(object sender, EventArgs e)
+        {
+            dataGridView2.DataSource = dt1;
+            dt1.Columns.Add("Sequence", typeof(int)); dataGridView2.Columns[0].Width = 70;
+            dt1.Columns.Add("Lat", typeof(int)); dataGridView2.Columns[1].Visible = false;
+            dt1.Columns.Add("Lng", typeof(int)); dataGridView2.Columns[2].Visible = false;
+            dt1.Columns.Add("Alt", typeof(int)); dataGridView2.Columns[3].Width = 70;
+            dt1.Columns.Add("Time", typeof(int)); dataGridView2.Columns[4].Width = 70;
+
+            dataGridView3.DataSource = dt2;
+            dt2.Columns.Add("Sequence", typeof(int)); dataGridView3.Columns[0].Width = 70;
+            dt2.Columns.Add("Lat", typeof(int)); dataGridView3.Columns[1].Visible = false;
+            dt2.Columns.Add("Lng", typeof(int)); dataGridView3.Columns[2].Visible = false;
+            dt2.Columns.Add("Alt", typeof(int)); dataGridView3.Columns[3].Width = 70;
+            dt2.Columns.Add("Time", typeof(int)); dataGridView3.Columns[4].Width = 70;
+
+            dataGridView4.DataSource = dt3;
+            dt3.Columns.Add("Sequence", typeof(int)); dataGridView4.Columns[0].Width = 70;
+            dt3.Columns.Add("Lat", typeof(int)); dataGridView4.Columns[1].Visible = false;
+            dt3.Columns.Add("Lng", typeof(int)); dataGridView4.Columns[2].Visible = false;
+            dt3.Columns.Add("Alt", typeof(int)); dataGridView4.Columns[3].Width = 70;
+            dt3.Columns.Add("Time", typeof(int)); dataGridView4.Columns[4].Width = 70;
+        }
+
+        private void dataGridView3_RowHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+
         }
 
         public struct Buffer
