@@ -268,7 +268,7 @@ namespace GCSv2
                             markers1.Routes.Add(route1);
                         }
                         
-                        dt1.Rows.Add(new Object[] { (markers1.Markers.Count - 1), (int)(point.Lat* 10000000), (int)(point.Lng* 10000000), 30, 0 });
+                        dt1.Rows.Add(new Object[] { (markers1.Markers.Count), (int)(point.Lat* 10000000), (int)(point.Lng* 10000000), 30, 0 });
                         
                         break;
 
@@ -291,7 +291,7 @@ namespace GCSv2
                             markers2.Routes.Add(route2);
                         }
 
-                        dt2.Rows.Add(new Object[] { (markers2.Markers.Count - 1), (int)(point2.Lat * 10000000), (int)(point2.Lng * 10000000), 30, 0 });
+                        dt2.Rows.Add(new Object[] { (markers2.Markers.Count), (int)(point2.Lat * 10000000), (int)(point2.Lng * 10000000), 30, 0 });
 
                         break;
 
@@ -314,7 +314,7 @@ namespace GCSv2
                             markers3.Routes.Add(route3);
                         }
 
-                        dt3.Rows.Add(new Object[] { (markers3.Markers.Count - 1), (int)(point3.Lat * 10000000), (int)(point3.Lng * 10000000), 30, 0 });
+                        dt3.Rows.Add(new Object[] { (markers3.Markers.Count), (int)(point3.Lat * 10000000), (int)(point3.Lng * 10000000), 30, 0 });
 
                         break;
                         
@@ -516,6 +516,30 @@ namespace GCSv2
                     dt3.Rows.Clear();
                 }
             }
+        }
+
+        private void dataGridView2_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            int r = e.RowIndex;
+            int c = e.ColumnIndex;
+            dt1.Rows[r][c] = Convert.ToInt32(dataGridView2.CurrentCell.Value);
+            //Console.WriteLine(dt1.Rows[r][c]);
+        }
+
+        private void dataGridView3_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            int r = e.RowIndex;
+            int c = e.ColumnIndex;
+            dt2.Rows[r][c] = Convert.ToInt32(dataGridView3.CurrentCell.Value);
+            //Console.WriteLine(dt2.Rows[r][c]);
+        }
+
+        private void dataGridView4_CellValueChanged(object sender, DataGridViewCellEventArgs e)
+        {
+            int r = e.RowIndex;
+            int c = e.ColumnIndex;
+            dt3.Rows[r][c] = Convert.ToInt32(dataGridView4.CurrentCell.Value);
+            //Console.WriteLine(dt3.Rows[r][c]);
         }
 
         public struct Buffer
