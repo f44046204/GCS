@@ -377,6 +377,8 @@ namespace GCSv2
                         }
                     }
 
+                if (markers1.Markers.Count > 1)
+                {
                     dt1.Rows.RemoveAt(dataGridView2.CurrentRow.Index);
                     markers1.Markers.RemoveAt(dataGridView2.CurrentRow.Index);
                     markers1.Routes.Clear();
@@ -386,7 +388,13 @@ namespace GCSv2
 
                     count = markers1.Markers.Count;
                     markers1.Markers[count - 1].ToolTipText = Convert.ToString(count);
-                
+                }
+                else
+                {
+                    markers1.Markers.Clear();
+                    points1.Clear();
+                    dt1.Rows.Clear();
+                }
             }
         }
 
@@ -416,7 +424,98 @@ namespace GCSv2
 
         private void dataGridView3_RowHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
+            if (e.Button == MouseButtons.Right)
+            {
+                dataGridView3.Rows[e.RowIndex].Selected = true;
+                contextMenuStrip2.Show(ToolStripDropDown.MousePosition);
+            }
+        }
 
+        private void toolStripMenuItem2_Click(object sender, EventArgs e)
+        {
+            DialogResult dr = MessageBox.Show("確認刪除?", "提示", MessageBoxButtons.OKCancel);
+            if (dr == DialogResult.OK)
+            {
+                int count;
+
+                foreach (DataRow row in dt2.Rows)
+                {
+                    int seq;
+                    if (Convert.ToInt32(row.ItemArray[0]) > Convert.ToInt32(dt2.Rows[dataGridView3.CurrentRow.Index].ItemArray[0]))
+                    {
+                        seq = Convert.ToInt32(row[0]) - 1;
+                        row[0] = seq;
+                        markers2.Markers[Convert.ToInt32(row.ItemArray[0])].ToolTipText = Convert.ToString(seq);
+                    }
+                }
+
+                if (markers2.Markers.Count > 1)
+                {
+                    dt2.Rows.RemoveAt(dataGridView3.CurrentRow.Index);
+                    markers2.Markers.RemoveAt(dataGridView3.CurrentRow.Index);
+                    markers2.Routes.Clear();
+                    points2.RemoveAt(dataGridView3.CurrentRow.Index);
+                    GMapRoute newRoute = new GMapRoute(points2, "route2");
+                    markers2.Routes.Add(newRoute);
+
+                    count = markers2.Markers.Count;
+                    markers2.Markers[count - 1].ToolTipText = Convert.ToString(count);
+                }
+                else
+                {
+                    markers2.Markers.Clear();
+                    points2.Clear();
+                    dt2.Rows.Clear();
+                }
+            }
+        }
+
+        private void dataGridView4_RowHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.Button == MouseButtons.Right)
+            {
+                dataGridView4.Rows[e.RowIndex].Selected = true;
+                contextMenuStrip3.Show(ToolStripDropDown.MousePosition);
+            }
+        }
+
+        private void toolStripMenuItem3_Click(object sender, EventArgs e)
+        {
+            DialogResult dr = MessageBox.Show("確認刪除?", "提示", MessageBoxButtons.OKCancel);
+            if (dr == DialogResult.OK)
+            {
+                int count;
+
+                foreach (DataRow row in dt3.Rows)
+                {
+                    int seq;
+                    if (Convert.ToInt32(row.ItemArray[0]) > Convert.ToInt32(dt3.Rows[dataGridView4.CurrentRow.Index].ItemArray[0]))
+                    {
+                        seq = Convert.ToInt32(row[0]) - 1;
+                        row[0] = seq;
+                        markers3.Markers[Convert.ToInt32(row.ItemArray[0])].ToolTipText = Convert.ToString(seq);
+                    }
+                }
+
+                if (markers3.Markers.Count > 1)
+                {
+                    dt3.Rows.RemoveAt(dataGridView4.CurrentRow.Index);
+                    markers3.Markers.RemoveAt(dataGridView4.CurrentRow.Index);
+                    markers3.Routes.Clear();
+                    points3.RemoveAt(dataGridView4.CurrentRow.Index);
+                    GMapRoute newRoute = new GMapRoute(points3, "route3");
+                    markers3.Routes.Add(newRoute);
+
+                    count = markers3.Markers.Count;
+                    markers3.Markers[count - 1].ToolTipText = Convert.ToString(count);
+                }
+                else
+                {
+                    markers3.Markers.Clear();
+                    points3.Clear();
+                    dt3.Rows.Clear();
+                }
+            }
         }
 
         public struct Buffer
