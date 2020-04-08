@@ -51,6 +51,25 @@ namespace GCSv2
         public byte[] UdpData2 = new byte[1024];
         public byte[] UdpData3 = new byte[1024];
 
+        /*模擬用參數*/
+        public PointLatLng simP1llh = new PointLatLng();
+        public PointLatLng simP2llh = new PointLatLng();
+        public PointLatLng simP3llh = new PointLatLng();
+        public double[] simP1ned = new double[3];
+        public double[] simP2ned = new double[3];
+        public double[] simP3ned = new double[3];
+        public double[] simV1 = new double[3];
+        public double[] simV2 = new double[3];
+        public double[] simV3 = new double[3];
+        public double yaw1 = 0;
+        public double yaw2 = 0;
+        public double yaw3 = 0;
+        public int wp1 = 0;
+        public int wp2 = 0;
+        public int wp3 = 0;
+        public double yawRate = 10.0;
+        public double avgSpd = 1.0;
+        
         public Form1()
         {
             InitializeComponent();
@@ -89,7 +108,7 @@ namespace GCSv2
             var udpReceiveUdpThread = new Thread(ThreadRunMethod);
 
             udpReceiveUdpThread.Start();
-
+            
             timer1.Enabled = true;
             timer1.Start();
             timer1.Interval = 100;
@@ -323,6 +342,34 @@ namespace GCSv2
                         break;
                 }
             }
+            else if (e.Button==MouseButtons.Middle) //模擬用初始飛機
+            {
+                switch (comboBox1.Text)
+                {
+                    case "UAV1":
+                        if (planes1.Markers.Count == 0)
+                        {
+                            
+                            simP1llh = gMapControl1.FromLocalToLatLng(e.X, e.Y);
+                            Planes.AddPosition(simP1llh.Lat, simP1llh.Lng, "UAV1", 0, 0, planes1);
+                        }
+                        break;
+                    case "UAV2":
+                        if (planes2.Markers.Count == 0)
+                        {
+                            simP2llh = gMapControl1.FromLocalToLatLng(e.X, e.Y);
+                            Planes.AddPosition(simP2llh.Lat, simP2llh.Lng, "UAV2", 0, 0, planes2);
+                        }
+                        break;
+                    case "UAV3":
+                        if (planes3.Markers.Count == 0)
+                        {
+                            simP3llh = gMapControl1.FromLocalToLatLng(e.X, e.Y);
+                            Planes.AddPosition(simP3llh.Lat, simP3llh.Lng, "UAV3", 0, 0, planes3);
+                        }
+                        break;
+                }
+            }
         }
 
         private void button4_Click(object sender, EventArgs e)
@@ -542,6 +589,98 @@ namespace GCSv2
             //Console.WriteLine(dt3.Rows[r][c]);
         }
 
+        private void timer2_Tick(object sender, EventArgs e)
+        {
+            if (markers1.Markers.Count > 0)
+            {
+                double desireYaw = Math.Atan((markers1.Markers[wp1].Position.Lng - planes1.Markers[planes1.Markers.Count-1].Position.Lng) /
+                                             (markers1.Markers[wp1].Position.Lat - planes1.Markers[planes1.Markers.Count-1].Position.Lat)) * 180 / Math.PI;
+
+                if (markers1.Markers[wp1].Position.Lat < planes1.Markers[planes1.Markers.Count - 1].Position.Lat)
+                    if (markers1.Markers[wp1].Position.Lng > planes1.Markers[planes1.Markers.Count - 1].Position.Lng)
+                        desireYaw += 180;
+                    else
+                        desireYaw -= 180;
+
+                Console.WriteLine(desireYaw);
+                
+                if (desireYaw >= 0)   //轉向
+                {
+                    if (desireYaw - yaw1 > yawRate)
+                        yaw1 += yawRate;
+                    else
+                        yaw1 = desireYaw;
+                }
+                else
+                {
+                    if (Math.Abs(desireYaw - yaw1) > yawRate)
+                        yaw1 -= yawRate;
+                    else
+                        yaw1 = desireYaw;
+                }
+
+                if(yaw1 == desireYaw)     //速度
+                {
+                    simV1[0] = avgSpd * Math.Cos(yaw1 / 180 * Math.PI);
+                    simV1[1] = avgSpd * Math.Sin(yaw1 / 180 * Math.PI);
+                    simV1[2] = 0;
+                }
+                
+                double[] WPned = CoordinateTransform.llh2ned(markers1.Markers[wp1].Position.Lat, markers1.Markers[wp1].Position.Lng, 30);
+                double dis = Math.Sqrt(Math.Pow(WPned[0] - simP1ned[0], 2) + Math.Pow(WPned[1] - simP1ned[1], 2));
+                Console.WriteLine("distance:" + dis);
+                if (dis < 5)
+                {
+                    if (wp1 < markers1.Markers.Count-1)
+                        wp1 += 1;
+                }
+                
+                simP1ned = CoordinateTransform.llh2ned(simP1llh.Lat, simP1llh.Lng, 30);
+                simP1ned[0] += simV1[0];
+                simP1ned[1] += simV1[1];
+                simP1ned[2] += simV1[2];
+                double[] XYZ = CoordinateTransform.ned2xyz(simP1ned[0], simP1ned[1], simP1ned[2]);
+                double[] LLH = CoordinateTransform.xyz2llh(XYZ[0], XYZ[1], XYZ[2]);
+                simP1llh.Lat = LLH[0];
+                simP1llh.Lng = LLH[1];
+               
+                for (int i = 0; i < planes1.Markers.Count; i++)
+                    planes1.Markers[i].IsVisible = false;
+                Planes.AddPosition(simP1llh.Lat, simP1llh.Lng, "UAV1", yaw1, 10, planes1);
+            }
+
+            if (dataGridView1.Rows.Count > 2)
+            {
+                dataGridView1.Rows.Clear();
+                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count-1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, yaw1, v1);
+                //dataGridView1.Rows.Insert(1, "UAV2", planes2.Markers[planes2.Markers.Count - 1].Position.Lat, planes2.Markers[planes2.Markers.Count - 1].Position.Lng, 30, 0, v2);
+            }
+            else
+            {
+                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count - 1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, 0, v1);
+                //dataGridView1.Rows.Insert(1, "UAV2", planes2.Markers[planes2.Markers.Count - 1].Position.Lat, planes2.Markers[planes2.Markers.Count - 1].Position.Lng, 30, 0, v2);
+            }
+        }
+
+        private void button3_Click(object sender, EventArgs e)
+        {
+            if (button3.Text == "Start Mission")
+            {
+                timer2.Enabled = true;
+                timer2.Start();
+                timer2.Interval = 100;
+                button3.Text = "Stop Mission";
+            }
+            else
+            {
+                timer2.Enabled = false;
+                timer2.Stop();
+                dataGridView1.Rows.Clear();
+                button3.Text = "Start Mission";
+            }
+            
+        }
+
         public struct Buffer
         {
             public double lat, lng, heading, height;
@@ -575,6 +714,9 @@ namespace GCSv2
                     buffer1.vx = BitConverter.ToInt16(UdpData1, 26) / 100.0;
                     buffer1.vy = BitConverter.ToInt16(UdpData1, 28) / 100.0;
                     buffer1.heading = BitConverter.ToUInt16(UdpData1, 32) / 100.0;
+
+                    //測試
+                    Console.WriteLine(UdpData1[3]);
                 }
 
                 if (UdpData2[5] == 33)
