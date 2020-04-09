@@ -593,33 +593,48 @@ namespace GCSv2
         {
             if (markers1.Markers.Count > 0)
             {
-                double desireYaw = Math.Atan((markers1.Markers[wp1].Position.Lng - planes1.Markers[planes1.Markers.Count-1].Position.Lng) /
-                                             (markers1.Markers[wp1].Position.Lat - planes1.Markers[planes1.Markers.Count-1].Position.Lat)) * 180 / Math.PI;
+                double wpAngle = Math.Atan((markers1.Markers[wp1].Position.Lng - planes1.Markers[planes1.Markers.Count - 1].Position.Lng) /
+                                             (markers1.Markers[wp1].Position.Lat - planes1.Markers[planes1.Markers.Count - 1].Position.Lat)) * 180 / Math.PI;
 
-                if (markers1.Markers[wp1].Position.Lat < planes1.Markers[planes1.Markers.Count - 1].Position.Lat)
-                    if (markers1.Markers[wp1].Position.Lng > planes1.Markers[planes1.Markers.Count - 1].Position.Lng)
-                        desireYaw += 180;
-                    else
-                        desireYaw -= 180;
+                if (markers1.Markers[wp1].Position.Lat - planes1.Markers[planes1.Markers.Count - 1].Position.Lat < 0)
+                    wpAngle += 180;
 
-                Console.WriteLine(desireYaw);
+                //限制角度在0-360
+                if (wpAngle > 360)
+                    wpAngle -= 360;
+                if (wpAngle < 0)
+                    wpAngle += 360;
+                if (yaw1 > 360)
+                    yaw1 -= 360;
+                if (yaw1 < 0)
+                    yaw1 += 360;
+
+                double desireYaw = 0;
+                desireYaw = wpAngle - yaw1;
+
+                if (desireYaw > 360)
+                    desireYaw -= 360;
+                if (desireYaw < 0)
+                    desireYaw += 360;
+
+                Console.WriteLine(wpAngle);
                 
-                if (desireYaw >= 0)   //轉向
+                if (desireYaw <= 180)   //轉向
                 {
-                    if (desireYaw - yaw1 > yawRate)
+                    if (desireYaw > yawRate)
                         yaw1 += yawRate;
                     else
-                        yaw1 = desireYaw;
+                        yaw1 = wpAngle;
                 }
                 else
                 {
-                    if (Math.Abs(desireYaw - yaw1) > yawRate)
+                    if (Math.Abs(360 - desireYaw) > yawRate)
                         yaw1 -= yawRate;
                     else
-                        yaw1 = desireYaw;
+                        yaw1 = wpAngle;
                 }
 
-                if(yaw1 == desireYaw)     //速度
+                if(yaw1 == wpAngle)     //速度
                 {
                     simV1[0] = avgSpd * Math.Cos(yaw1 / 180 * Math.PI);
                     simV1[1] = avgSpd * Math.Sin(yaw1 / 180 * Math.PI);
@@ -633,7 +648,13 @@ namespace GCSv2
                 {
                     if (wp1 < markers1.Markers.Count-1)
                         wp1 += 1;
+                    else
+                    {
+                        for (int i = 0; i < 3; i++)
+                            simV1[i] = 0;
+                    }
                 }
+                label5.Text = "Heading to No. " + (wp1+1);
                 
                 simP1ned = CoordinateTransform.llh2ned(simP1llh.Lat, simP1llh.Lng, 30);
                 simP1ned[0] += simV1[0];
@@ -648,17 +669,15 @@ namespace GCSv2
                     planes1.Markers[i].IsVisible = false;
                 Planes.AddPosition(simP1llh.Lat, simP1llh.Lng, "UAV1", yaw1, 10, planes1);
             }
-
-            if (dataGridView1.Rows.Count > 2)
+            
+            if (dataGridView1.Rows.Count > 1)
             {
                 dataGridView1.Rows.Clear();
-                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count-1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, yaw1, v1);
-                //dataGridView1.Rows.Insert(1, "UAV2", planes2.Markers[planes2.Markers.Count - 1].Position.Lat, planes2.Markers[planes2.Markers.Count - 1].Position.Lng, 30, 0, v2);
+                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count-1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, yaw1, avgSpd*10);
             }
             else
             {
-                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count - 1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, 0, v1);
-                //dataGridView1.Rows.Insert(1, "UAV2", planes2.Markers[planes2.Markers.Count - 1].Position.Lat, planes2.Markers[planes2.Markers.Count - 1].Position.Lng, 30, 0, v2);
+                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count - 1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, yaw1, avgSpd*10);
             }
         }
 
@@ -714,9 +733,6 @@ namespace GCSv2
                     buffer1.vx = BitConverter.ToInt16(UdpData1, 26) / 100.0;
                     buffer1.vy = BitConverter.ToInt16(UdpData1, 28) / 100.0;
                     buffer1.heading = BitConverter.ToUInt16(UdpData1, 32) / 100.0;
-
-                    //測試
-                    Console.WriteLine(UdpData1[3]);
                 }
 
                 if (UdpData2[5] == 33)
