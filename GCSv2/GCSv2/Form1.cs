@@ -92,6 +92,7 @@ namespace GCSv2
             gMapControl1.Overlays.Add(markers1);
             gMapControl1.Overlays.Add(markers2);
             gMapControl1.Overlays.Add(markers3);
+            
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -380,16 +381,19 @@ namespace GCSv2
                     markers1.Clear();
                     points1.Clear();
                     dt1.Clear();
+                    wp1 = 0;
                     break;
                 case "UAV2":
                     markers2.Clear();
                     points2.Clear();
                     dt2.Clear();
+                    wp2 = 0;
                     break;
                 case "UAV3":
                     markers3.Clear();
                     points3.Clear();
                     dt3.Clear();
+                    wp3 = 0;
                     break;
                 default:
                     MessageBox.Show("Invalid selection. Please select UAV.", "Target needed.", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -600,24 +604,14 @@ namespace GCSv2
                     wpAngle += 180;
 
                 //限制角度在0-360
-                if (wpAngle > 360)
-                    wpAngle -= 360;
-                if (wpAngle < 0)
-                    wpAngle += 360;
-                if (yaw1 > 360)
-                    yaw1 -= 360;
-                if (yaw1 < 0)
-                    yaw1 += 360;
+                wpAngle = TCAS.angleLimit(wpAngle);
+                yaw1 = TCAS.angleLimit(yaw1);
 
                 double desireYaw = 0;
                 desireYaw = wpAngle - yaw1;
+                desireYaw = TCAS.angleLimit(desireYaw);
 
-                if (desireYaw > 360)
-                    desireYaw -= 360;
-                if (desireYaw < 0)
-                    desireYaw += 360;
-
-                Console.WriteLine(wpAngle);
+                //Console.WriteLine(wpAngle);
                 
                 if (desireYaw <= 180)   //轉向
                 {
@@ -643,7 +637,7 @@ namespace GCSv2
                 
                 double[] WPned = CoordinateTransform.llh2ned(markers1.Markers[wp1].Position.Lat, markers1.Markers[wp1].Position.Lng, 30);
                 double dis = Math.Sqrt(Math.Pow(WPned[0] - simP1ned[0], 2) + Math.Pow(WPned[1] - simP1ned[1], 2));
-                Console.WriteLine("distance:" + dis);
+                //Console.WriteLine("distance:" + dis);
                 if (dis < 5)
                 {
                     if (wp1 < markers1.Markers.Count-1)
@@ -667,18 +661,172 @@ namespace GCSv2
                
                 for (int i = 0; i < planes1.Markers.Count; i++)
                     planes1.Markers[i].IsVisible = false;
-                Planes.AddPosition(simP1llh.Lat, simP1llh.Lng, "UAV1", yaw1, 10, planes1);
+                Planes.AddPosition(simP1llh.Lat, simP1llh.Lng, "UAV1", yaw1, avgSpd*10, planes1);
+                TCAS.TAbubble(simP1llh.Lat, simP1llh.Lng, avgSpd * 10, (int)gMapControl1.Zoom, planes1);
             }
-            
-            if (dataGridView1.Rows.Count > 1)
+
+            if (markers2.Markers.Count > 0)
+            {
+                double wpAngle = Math.Atan((markers2.Markers[wp2].Position.Lng - planes2.Markers[planes2.Markers.Count - 1].Position.Lng) /
+                                             (markers2.Markers[wp2].Position.Lat - planes2.Markers[planes2.Markers.Count - 1].Position.Lat)) * 180 / Math.PI;
+
+                if (markers2.Markers[wp2].Position.Lat - planes2.Markers[planes2.Markers.Count - 1].Position.Lat < 0)
+                    wpAngle += 180;
+
+                //限制角度在0-360
+                wpAngle = TCAS.angleLimit(wpAngle);
+                yaw2 = TCAS.angleLimit(yaw2);
+
+                double desireYaw = 0;
+                desireYaw = wpAngle - yaw2;
+                desireYaw = TCAS.angleLimit(desireYaw);
+
+                //Console.WriteLine(wpAngle);
+
+                if (desireYaw <= 180)   //轉向
+                {
+                    if (desireYaw > yawRate)
+                        yaw2 += yawRate;
+                    else
+                        yaw2 = wpAngle;
+                }
+                else
+                {
+                    if (Math.Abs(360 - desireYaw) > yawRate)
+                        yaw2 -= yawRate;
+                    else
+                        yaw2 = wpAngle;
+                }
+
+                if (yaw2 == wpAngle)     //速度
+                {
+                    simV2[0] = avgSpd * Math.Cos(yaw2 / 180 * Math.PI);
+                    simV2[1] = avgSpd * Math.Sin(yaw2 / 180 * Math.PI);
+                    simV2[2] = 0;
+                }
+
+                double[] WPned = CoordinateTransform.llh2ned(markers2.Markers[wp2].Position.Lat, markers2.Markers[wp2].Position.Lng, 30);
+                double dis = Math.Sqrt(Math.Pow(WPned[0] - simP2ned[0], 2) + Math.Pow(WPned[1] - simP2ned[1], 2));
+                //Console.WriteLine("distance:" + dis);
+                if (dis < 5)
+                {
+                    if (wp2 < markers2.Markers.Count - 1)
+                        wp2 += 1;
+                    else
+                    {
+                        for (int i = 0; i < 3; i++)
+                            simV2[i] = 0;
+                    }
+                }
+                //label5.Text = "Heading to No. " + (wp2 + 1);
+
+                simP2ned = CoordinateTransform.llh2ned(simP2llh.Lat, simP2llh.Lng, 30);
+                simP2ned[0] += simV2[0];
+                simP2ned[1] += simV2[1];
+                simP2ned[2] += simV2[2];
+                double[] XYZ = CoordinateTransform.ned2xyz(simP2ned[0], simP2ned[1], simP2ned[2]);
+                double[] LLH = CoordinateTransform.xyz2llh(XYZ[0], XYZ[1], XYZ[2]);
+                simP2llh.Lat = LLH[0];
+                simP2llh.Lng = LLH[1];
+
+                for (int i = 0; i < planes2.Markers.Count; i++)
+                    planes2.Markers[i].IsVisible = false;
+                Planes.AddPosition(simP2llh.Lat, simP2llh.Lng, "UAV2", yaw2, avgSpd*10, planes2);
+                TCAS.TAbubble(simP2llh.Lat, simP2llh.Lng, avgSpd * 10, (int)gMapControl1.Zoom, planes2);
+            }
+
+            if (markers3.Markers.Count > 0)
+            {
+                double wpAngle = Math.Atan((markers3.Markers[wp3].Position.Lng - planes3.Markers[planes3.Markers.Count - 1].Position.Lng) /
+                                             (markers3.Markers[wp3].Position.Lat - planes3.Markers[planes3.Markers.Count - 1].Position.Lat)) * 180 / Math.PI;
+
+                if (markers3.Markers[wp3].Position.Lat - planes3.Markers[planes3.Markers.Count - 1].Position.Lat < 0)
+                    wpAngle += 180;
+
+                //限制角度在0-360
+                wpAngle = TCAS.angleLimit(wpAngle);
+                yaw3 = TCAS.angleLimit(yaw3);
+
+                double desireYaw = 0;
+                desireYaw = wpAngle - yaw3;
+                desireYaw = TCAS.angleLimit(desireYaw);
+
+                //Console.WriteLine(wpAngle);
+
+                if (desireYaw <= 180)   //轉向
+                {
+                    if (desireYaw > yawRate)
+                        yaw3 += yawRate;
+                    else
+                        yaw3 = wpAngle;
+                }
+                else
+                {
+                    if (Math.Abs(360 - desireYaw) > yawRate)
+                        yaw3 -= yawRate;
+                    else
+                        yaw3 = wpAngle;
+                }
+
+                if (yaw3 == wpAngle)     //速度
+                {
+                    simV3[0] = avgSpd * Math.Cos(yaw3 / 180 * Math.PI);
+                    simV3[1] = avgSpd * Math.Sin(yaw3 / 180 * Math.PI);
+                    simV3[2] = 0;
+                }
+
+                double[] WPned = CoordinateTransform.llh2ned(markers3.Markers[wp3].Position.Lat, markers3.Markers[wp3].Position.Lng, 30);
+                double dis = Math.Sqrt(Math.Pow(WPned[0] - simP3ned[0], 2) + Math.Pow(WPned[1] - simP3ned[1], 2));
+                Console.WriteLine("distance:" + dis);
+                if (dis < 5)
+                {
+                    if (wp3 < markers3.Markers.Count - 1)
+                        wp3 += 1;
+                    else
+                    {
+                        for (int i = 0; i < 3; i++)
+                            simV3[i] = 0;
+                    }
+                }
+                //label5.Text = "Heading to No. " + (wp2 + 1);
+
+                simP3ned = CoordinateTransform.llh2ned(simP3llh.Lat, simP3llh.Lng, 30);
+                simP3ned[0] += simV3[0];
+                simP3ned[1] += simV3[1];
+                simP3ned[2] += simV3[2];
+                double[] XYZ = CoordinateTransform.ned2xyz(simP3ned[0], simP3ned[1], simP3ned[2]);
+                double[] LLH = CoordinateTransform.xyz2llh(XYZ[0], XYZ[1], XYZ[2]);
+                simP3llh.Lat = LLH[0];
+                simP3llh.Lng = LLH[1];
+
+                for (int i = 0; i < planes3.Markers.Count; i++)
+                    planes3.Markers[i].IsVisible = false;
+                Planes.AddPosition(simP3llh.Lat, simP3llh.Lng, "UAV3", yaw3, avgSpd*10, planes3);
+                TCAS.TAbubble(simP3llh.Lat, simP3llh.Lng, avgSpd * 10, (int)gMapControl1.Zoom, planes3);
+            }
+
+            if (dataGridView1.Rows.Count > 3)
             {
                 dataGridView1.Rows.Clear();
-                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count-1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, yaw1, avgSpd*10);
+                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count-1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, (int)yaw1, avgSpd*10);
+                dataGridView1.Rows.Insert(1, "UAV2", planes2.Markers[planes2.Markers.Count - 1].Position.Lat, planes2.Markers[planes2.Markers.Count - 1].Position.Lng, 30, (int)yaw2, avgSpd * 10);
+                dataGridView1.Rows.Insert(2, "UAV3", planes3.Markers[planes3.Markers.Count - 1].Position.Lat, planes3.Markers[planes3.Markers.Count - 1].Position.Lng, 30, (int)yaw3, avgSpd * 10);
             }
             else
             {
-                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count - 1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, yaw1, avgSpd*10);
+                dataGridView1.Rows.Insert(0, "UAV1", planes1.Markers[planes1.Markers.Count - 1].Position.Lat, planes1.Markers[planes1.Markers.Count - 1].Position.Lng, 30, (int)yaw1, avgSpd*10);
+                dataGridView1.Rows.Insert(1, "UAV2", planes2.Markers[planes2.Markers.Count - 1].Position.Lat, planes2.Markers[planes2.Markers.Count - 1].Position.Lng, 30, (int)yaw2, avgSpd * 10);
+                dataGridView1.Rows.Insert(2, "UAV3", planes3.Markers[planes3.Markers.Count - 1].Position.Lat, planes3.Markers[planes3.Markers.Count - 1].Position.Lng, 30, (int)yaw3, avgSpd * 10);
             }
+            /*
+            bool Horizontal = TCAS.horizontalSelection(yaw1, planes1.Markers[planes1.Markers.Count - 1].Position, planes2.Markers[planes2.Markers.Count - 1].Position, simV1, simV2);
+            if (Horizontal)
+                label6.Text = "Horizontal Approach.";
+            else
+                label6.Text = "Surveillance.";*/
+            double distance = Math.Sqrt(Math.Pow(simP3ned[0] - simP2ned[0], 2) + Math.Pow(simP3ned[1] - simP2ned[1], 2));
+            Console.WriteLine(distance);
+            label6.Text = gMapControl1.Zoom.ToString();
         }
 
         private void button3_Click(object sender, EventArgs e)
@@ -699,7 +847,7 @@ namespace GCSv2
             }
             
         }
-
+        
         public struct Buffer
         {
             public double lat, lng, heading, height;
