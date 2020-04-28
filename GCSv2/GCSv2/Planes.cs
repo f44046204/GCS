@@ -12,7 +12,8 @@ namespace GCSv2
         /*飛機資料*/
         public DataTable dt = new DataTable();
 
-        public static int a = 10;
+        public static int TA = 30;
+        public static int RA = 20;
 
         /* 不變常數宣告 */
         private static readonly double d2r = 0.01745329251994329576923690768489;
@@ -25,6 +26,7 @@ namespace GCSv2
             picPlane.MakeTransparent(Color.Yellow);
 
             GMapMarker plane = new GMarkerGoogle(new PointLatLng(lat, lng), picPlane);
+            plane.Offset = new Point(-picPlane.Width / 2, -picPlane.Height / 2);
             GMapToolTip tooltip = new GMapToolTip(plane);
 
             Font f = new Font("Arial", 7, FontStyle.Bold);
@@ -44,17 +46,6 @@ namespace GCSv2
             plane.ToolTip.Font = f;
 
             overlay.Markers.Add(plane);
-
-            /*
-            //航向的圖層
-            Image srcArrow = Image.FromFile("D:/20190831Gmap/Gmap_Figure/arrow2.png");
-            Bitmap picArrow = GraphicRotateAtAny((Bitmap)srcArrow, srcArrow.Height / 2, srcArrow.Width / 2, heading);
-            picArrow.MakeTransparent(Color.White);
-            picArrow.MakeTransparent(Color.Yellow);
-
-            GMapMarker arrow = new GMarkerGoogle(new PointLatLng(lat, lng), picArrow);
-
-            planes.Markers.Add(arrow);*/
         }
 
         private static Bitmap GraphicRotateAtAny(Bitmap SrcBmp, int m, int n, double angle)
@@ -86,5 +77,26 @@ namespace GCSv2
             DestBmp.Save("DestBmp");
             return DestBmp;
         }
+
+        public static Bitmap Resize(Bitmap originImage, Double times)
+        {
+            int width = Convert.ToInt32(originImage.Width * times);
+            int height = Convert.ToInt32(originImage.Height * times);
+
+            return Process(originImage, originImage.Width, originImage.Height, width, height);
+        }
+
+        private static Bitmap Process(Bitmap originImage, int oriwidth, int oriheight, int width, int height)
+        {
+            Bitmap resizedbitmap = new Bitmap(width, height);
+            Graphics g = Graphics.FromImage(resizedbitmap);
+            g.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.High;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+            g.Clear(Color.Transparent);
+            g.DrawImage(originImage, new Rectangle(0, 0, width, height), new Rectangle(0, 0, oriwidth, oriheight), GraphicsUnit.Pixel);
+            return resizedbitmap;
+        }
+
+        
     }
 }
