@@ -9,7 +9,7 @@ namespace GCSv2
         public const double b = 6356752.3142;
         public static double e = Math.Sqrt(1.0 - Math.Pow((b / a), 2));
 
-        public static double[] xyz = new double[3];
+        //public static double[] xyz = new double[3];
         public static double[] orgxyz = new double[3];
         public static double[] orgllh = new double[3];
 
@@ -33,6 +33,8 @@ namespace GCSv2
             var tmp2 = Math.Sqrt(1 - e * e * sinlat * sinlat);
             var z = (a * tmp * sinlat) / tmp2 + h * sinlat;
 
+            double[] xyz = new double[3];
+
             xyz[0] = x;
             xyz[1] = y;
             xyz[2] = z;
@@ -53,7 +55,7 @@ namespace GCSv2
             orgllh[1] = 120.223348;
             orgllh[2] = 26.00;
 
-            double[] tmpxyz = xyz;
+            double[] tmpxyz = new double[3];
             double[] tmporg = orgxyz;
 
             //目標點到原點距離
