@@ -4,6 +4,7 @@ using GMap.NET;
 using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
 using System.Drawing;
+using System.Collections.Generic;
 
 namespace GCSv2
 {
@@ -14,6 +15,8 @@ namespace GCSv2
 
         public static int TA = 30;
         public static int RA = 20;
+
+        Random random = new Random();
 
         /* 不變常數宣告 */
         private static readonly double d2r = 0.01745329251994329576923690768489;
@@ -97,6 +100,26 @@ namespace GCSv2
             return resizedbitmap;
         }
 
-        
+        public static void NewWaypoint(bool isReached, double lat, double lng, GMapOverlay markerOverlay, GMapOverlay planeOverlay, List<PointLatLng> points, DataTable dt)
+        {
+            if (isReached == true)
+            {
+                PointLatLng latlng = new PointLatLng(lat, lng);
+                GMapMarker waypoint = new GMarkerGoogle(latlng, GMarkerGoogleType.blue);
+                waypoint.ToolTipText = Convert.ToString(planeOverlay.Id + "\n" + (markerOverlay.Markers.Count + 1));
+                waypoint.ToolTip.Fill = Brushes.Transparent;
+                waypoint.ToolTip.Offset = new Point(-30, -15);
+                waypoint.ToolTip.Stroke.Color = Color.Transparent;
+                waypoint.ToolTip.Foreground = Brushes.Black;
+                waypoint.ToolTip.Font = new Font("Arial", 10);
+                waypoint.ToolTipMode = MarkerTooltipMode.Always;
+                waypoint.IsVisible = waypoint.IsMouseOver;
+
+                markerOverlay.Markers.Add(waypoint);
+                points.Add(latlng);
+
+                dt.Rows.Add(new Object[] { markerOverlay.Markers.Count, (int)(latlng.Lat * 10000000), (int)(latlng.Lng * 10000000), 30, 0 });
+            }
+        }
     }
 }
