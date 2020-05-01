@@ -18,6 +18,7 @@ namespace GCSv2
         /*模擬用參數*/
         public double yawRate = 50.0;
         public double avgSpd = 10.0;
+        public double topSpd = 30.0;
 
         /*無人機地圖顯示*/
         public List<GMapOverlay> planes = new List<GMapOverlay>();
@@ -31,6 +32,7 @@ namespace GCSv2
         public List<double> yaw = new List<double>();
         public List<int> wp = new List<int>();
         Random random = new Random();
+        public List<bool> isReached = new List<bool>();
         /*飛行資訊*/
         public List<DataTable> dt = new List<DataTable>();
         public List<DataGridView> dataGridViews = new List<DataGridView>();
@@ -70,7 +72,7 @@ namespace GCSv2
         private void button1_Click(object sender, EventArgs e)
         {
             var udpReceiveUdpThread = new Thread(ThreadRunMethod);
-
+            
             if (!checkBox1.Checked)
             {
                 udpReceiveUdpThread.Start();
@@ -92,7 +94,7 @@ namespace GCSv2
         {
             for (int n = 0; n < udpClients.Count; n++)
             {
-                double V = Math.Sqrt(Math.Pow(buffers[n].vx, 2) + Math.Pow(buffers[n].vy, 2));
+                double V = Math.Sqrt(buffers[n].vx * buffers[n].vx + buffers[n].vy * buffers[n].vy);
                 V = double.Parse(V.ToString("F2"));
 
                 Planes.AddPosition(buffers[n].lat, buffers[n].lng, planes[n].Id, buffers[n].heading, V, planes[n]);
@@ -136,19 +138,20 @@ namespace GCSv2
                     {
                         PointLatLng point = gMapControl1.FromLocalToLatLng(e.X, e.Y);
                         
+                        /*
                         Bitmap pin = new Bitmap(21, 21);
                         for (int x = 0; x < pin.Width; x++)
                         {
                             for (int y = 0; y < pin.Height; y++)
                             {
-                                pin.SetPixel(x, y, Color.FromArgb(0, Math.Min(((n % 4 * 51) + 100), 255), Math.Min(((n % 4 * 51) + 100), 255)));
+                                pin.SetPixel(x, y, Color.FromArgb(R, G, B));
                             }
-                        }
+                        }*/
                         
-                        GMapMarker marker = new GMarkerGoogle(point, pin);
-                        marker.ToolTipText = Convert.ToString(markers[n].Markers.Count + 1);
+                        GMapMarker marker = new GMarkerGoogle(point, GMarkerGoogleType.blue);
+                        marker.ToolTipText = Convert.ToString( planes[n].Id + "\n" + (markers[n].Markers.Count + 1));
                         marker.ToolTip.Fill = Brushes.Transparent;
-                        marker.ToolTip.Offset = new Point(marker.LocalPosition.X - 18, marker.LocalPosition.Y - 15);
+                        marker.ToolTip.Offset = new Point(-30, -15);
                         marker.ToolTip.Stroke.Color = Color.Transparent;
                         marker.ToolTip.Foreground = Brushes.Black;
                         marker.ToolTip.Font = new Font("Arial", 10);
@@ -165,6 +168,50 @@ namespace GCSv2
                         dt[n].Rows.Add(new Object[] { markers[n].Markers.Count, (int)(point.Lat * 10000000), (int)(point.Lng * 10000000), 30, 0 });
                     }
                 }
+            }
+            else if(e.Button == MouseButtons.Middle)
+            {
+                planes.Add(new GMapOverlay(Name = textBox1.Text));
+                gMapControl1.Overlays.Add(planes[planes.Count - 1]);
+                PointLatLng latLng = gMapControl1.FromLocalToLatLng(e.X, e.Y);
+                Planes.AddPosition(latLng.Lat, latLng.Lng, textBox1.Text, 0, avgSpd, planes[planes.Count - 1]);
+                markers.Add(new GMapOverlay(Name = "markers" + planes.Count));
+                gMapControl1.Overlays.Add(markers[markers.Count - 1]);
+                dt.Add(new DataTable());
+                routes.Add(new GMapRoute(Name = "routes" + planes.Count));
+                points.Add(new List<PointLatLng>());
+                simLLH.Add(new PointLatLng());
+                simLLH[simLLH.Count - 1] = latLng;
+                simXYZ.Add(new double[3]);
+                simV.Add(new double[3]);
+                yaw.Add(0.0);
+                wp.Add(0);
+                tabControl1.TabPages.Add(planes[planes.Count - 1].Id);
+                dataGridViews.Add(new DataGridView());
+                labels.Add(new Label());
+                comboBox1.Items.Add(textBox1.Text);
+                textBox1.Text = "UAV" + (planes.Count + 1);
+                //每台飛機的導航點清單
+                dataGridViews[dataGridViews.Count - 1].DataSource = dt[dt.Count - 1];
+                dt[dt.Count - 1].Columns.Add("Sequence", typeof(int));
+                dt[dt.Count - 1].Columns.Add("Lat", typeof(int));
+                dt[dt.Count - 1].Columns.Add("Lng", typeof(int));
+                dt[dt.Count - 1].Columns.Add("Alt", typeof(int));
+                dt[dt.Count - 1].Columns.Add("Time", typeof(int));
+                dataGridViews[dataGridViews.Count - 1].Visible = true;
+                dataGridViews[dataGridViews.Count - 1].Parent = tabControl1.TabPages[tabControl1.TabPages.Count - 1];
+                dataGridViews[dataGridViews.Count - 1].Location = new Point(0, 0);
+                dataGridViews[dataGridViews.Count - 1].Width = tabControl1.Width;
+                dataGridViews[dataGridViews.Count - 1].Height = tabControl1.Height;
+                dataGridViews[dataGridViews.Count - 1].BackgroundColor = Color.White;
+
+                labels[labels.Count - 1].Visible = true;
+                labels[labels.Count - 1].Text = planes[planes.Count - 1].Id + ":";
+                labels[labels.Count - 1].Parent = tabControl2.TabPages[0];
+                labels[labels.Count - 1].Location = new Point(0, (planes.Count - 1) * 20);
+                labels[labels.Count - 1].BackColor = Color.Transparent;
+                labels[labels.Count - 1].BringToFront();
+                labels[labels.Count - 1].Width = 200;
             }
         }
 
@@ -194,9 +241,9 @@ namespace GCSv2
                     simXYZ[n] = CoordinateTransform.llh2xyz(simLLH[n].Lat, simLLH[n].Lng, 30);
                     double wpAngle = Math.Atan((markers[n].Markers[wp[n]].Position.Lng - simLLH[n].Lng)
                                               /(markers[n].Markers[wp[n]].Position.Lat - simLLH[n].Lat)) * 180 / Math.PI;
-                    double plane2wp = Math.Sqrt(Math.Pow(wpXYZ[0] - simXYZ[n][0], 2) 
-                                              + Math.Pow(wpXYZ[1] - simXYZ[n][1], 2) 
-                                              + Math.Pow(wpXYZ[2] - simXYZ[n][2], 2));
+                    double plane2wp = Math.Sqrt((wpXYZ[0] - simXYZ[n][0]) * (wpXYZ[0] - simXYZ[n][0]) +
+                                                (wpXYZ[1] - simXYZ[n][1]) * (wpXYZ[1] - simXYZ[n][1]) +
+                                                (wpXYZ[2] - simXYZ[n][2]) * (wpXYZ[2] - simXYZ[n][2]));
 
                     simV[n][0] = (wpXYZ[0] - simXYZ[n][0]) * avgSpd / plane2wp;
                     simV[n][1] = (wpXYZ[1] - simXYZ[n][1]) * avgSpd / plane2wp;
@@ -229,27 +276,65 @@ namespace GCSv2
                         else
                             yaw[n] = wpAngle;
                     }
-                    /*
-                    if (yaw[n] == wpAngle)     //速度
-                    {
-                        simV[n][0] = avgSpd * Math.Sin((450 - yaw[n]) * Math.PI / 180);
-                        simV[n][1] = avgSpd * Math.Cos((450 - yaw[n]) * Math.PI / 180);
-                        simV[n][2] = 0;
-                    }*/
-
-                    //double dis = Math.Sqrt(Math.Pow(wpNED[0] - simNED[n][0], 2) + Math.Pow(wpNED[1] - simNED[n][1], 2));
-                    //Console.WriteLine("distance:" + dis);
+                    
                     if (plane2wp < 10)
                     {
+                        isReached[n] = true;
+
                         if (wp[n] < markers[n].Markers.Count - 1)
+                        {
                             wp[n] += 1;
+                            isReached[n] = false;
+                        }
                         else
                         {
                             for (int i = 0; i < 3; i++)
                                 simV[n][i] = 0;
+                            yaw[n] = 0;
                         }
                     }
-                    //label5.Text = "Heading to No. " + (wp1 + 1);
+
+                    //測試PF避障
+                    if(isReached[n] == false)
+                    {
+                        for (int m = 0; m < planes.Count; m++)
+                        {
+                            if (n != m)
+                            {
+                                double distance = Math.Sqrt(Math.Pow((simXYZ[n][0] - simXYZ[m][0]), 2) +
+                                                    Math.Pow((simXYZ[n][1] - simXYZ[m][1]), 2) +
+                                                    Math.Pow((simXYZ[n][2] - simXYZ[m][2]), 2));
+                                Console.WriteLine(planes[n].Id + " to " + planes[m].Id + " distance is :" + distance);
+                            }
+                        }
+                        simV[n] = CollisionAvoidance.PF(planes.Count, simXYZ[n], simXYZ, wpXYZ);
+
+                        double V = Math.Sqrt(simV[n][0] * simV[n][0] + simV[n][1] * simV[n][1] + simV[n][2] * simV[n][2]);
+                        simV[n][0] *= avgSpd / V;
+                        simV[n][1] *= avgSpd / V;
+                        simV[n][2] *= avgSpd / V;
+                    }
+                    else
+                        button6.PerformClick();
+
+                    /*
+                    //測試MNDM避障
+                    double[] accXYZ = new double[3];
+                    for (int m = 0; m < planes.Count; m++)
+                    {
+                        if (n != m)
+                        {
+                            double distance = Math.Sqrt((simXYZ[n][0] - simXYZ[m][0]) * (simXYZ[n][0] - simXYZ[m][0]) +
+                                                        (simXYZ[n][1] - simXYZ[m][1]) * (simXYZ[n][1] - simXYZ[m][1]) +
+                                                        (simXYZ[n][2] - simXYZ[m][2]) * (simXYZ[n][2] - simXYZ[m][2]));
+                            Console.WriteLine(planes[n].Id + " to " + planes[m].Id + " distance is :" + distance);
+
+                            accXYZ = CollisionAvoidance.MNDM(planes.Count, simV[n], simXYZ[n], simXYZ);
+                            simV[n][0] += accXYZ[0];
+                            simV[n][1] += accXYZ[1];
+                            simV[n][2] += accXYZ[2];
+                        }
+                    }*/
 
                     simXYZ[n][0] += simV[n][0];
                     simXYZ[n][1] += simV[n][1];
@@ -265,8 +350,29 @@ namespace GCSv2
                         planes[n].Markers[i].IsVisible = false;
                     Planes.AddPosition(simLLH[n].Lat, simLLH[n].Lng, planes[n].Id, yaw[n], avgSpd, planes[n]);
                     //TCAS.TAbubble(simLLH[n].Lat, simLLH[n].Lng, avgSpd, (int)gMapControl1.Zoom, planes[n]);
-                    
-                    labels[n].Text = planes[n].Id + ": distance to waypoint " + (wp[n]+1) + " is " + (int)plane2wp;
+
+                    //飛行軌跡
+                    if (planes[n].Markers.Count > 1)
+                    {
+                        Image srcRoute = Image.FromFile("dot_red.png");
+                        Bitmap picRoute = (Bitmap)srcRoute;
+
+                        for (int i = 0; i < planes[n].Markers.Count - 1; i++)
+                        {
+                            GMapMarker route = new GMarkerGoogle(new PointLatLng(planes[n].Markers[i].Position.Lat, planes[n].Markers[i].Position.Lng), picRoute);
+                            route.Offset = new Point(-picRoute.Width / 2, -picRoute.Height / 2);
+                            planes[n].Markers.RemoveAt(i);
+                            planes[n].Markers.Insert(i, route);
+                        }
+                        
+                        if (planes[n].Markers.Count > 101)
+                        {
+                            for (int i = 0; i < planes[n].Markers.Count - 101; i++)
+                                planes[n].Markers[i].IsVisible = false;
+                        }
+                    }
+
+                    labels[n].Text = planes[n].Id + ": distance to waypoint " + (wp[n]+1) + " is " + (int)plane2wp + " m";
                 }
                 if (dataGridView1.Rows.Count <= planes.Count)
                     dataGridView1.Rows.Add(new Object[] { planes[n].Id, simLLH[n].Lat, simLLH[n].Lng, 30, (int)yaw[n], avgSpd });
@@ -275,6 +381,8 @@ namespace GCSv2
                     dataGridView1.Rows.RemoveAt(n);
                     dataGridView1.Rows.Insert(n, new Object[] { planes[n].Id, simLLH[n].Lat, simLLH[n].Lng, 30, (int)yaw[n], avgSpd });
                 }
+
+                Planes.NewWaypoint(isReached[n], 22.0 + (random.Next(931315, 1024875) / 1000000.0), 120.0 + (random.Next(168747, 264191) / 1000000.0), markers[n], planes[n], points[n], dt[n]);
             }
         }
 
@@ -286,7 +394,7 @@ namespace GCSv2
                 {
                     timer2.Enabled = true;
                     timer2.Start();
-                    timer2.Interval = 1000;
+                    timer2.Interval = 10;
                     button3.Text = "Stop Mission";
                 }
             }
@@ -362,8 +470,8 @@ namespace GCSv2
                 {
                     planes.Add(new GMapOverlay(Name = textBox1.Text));
                     gMapControl1.Overlays.Add(planes[planes.Count - 1]);
-                    double randomLat = 22.0 + (random.Next(906277, 1185923) / 1000000.0);
-                    double randomLng = 120.0 + (random.Next(32532, 307118) / 1000000.0);
+                    double randomLat = 22.0 + (random.Next(931315, 1024875) / 1000000.0); //range:10km^2
+                    double randomLng = 120.0 + (random.Next(168747, 264191) / 1000000.0);
                     Planes.AddPosition(randomLat, randomLng, textBox1.Text, 0, avgSpd, planes[planes.Count - 1]);
                     markers.Add(new GMapOverlay(Name = "markers" + planes.Count));
                     gMapControl1.Overlays.Add(markers[markers.Count - 1]);
@@ -376,12 +484,12 @@ namespace GCSv2
                     simV.Add(new double[3]);
                     yaw.Add(0.0);
                     wp.Add(0);
+                    isReached.Add(false);
                     tabControl1.TabPages.Add(planes[planes.Count - 1].Id);
                     dataGridViews.Add(new DataGridView());
                     labels.Add(new Label());
                     comboBox1.Items.Add(textBox1.Text);
                     textBox1.Text = "UAV" + (planes.Count + 1);
-
                     //每台飛機的導航點清單
                     dataGridViews[dataGridViews.Count - 1].DataSource = dt[dt.Count - 1];
                     dt[dt.Count - 1].Columns.Add("Sequence", typeof(int));
@@ -450,50 +558,44 @@ namespace GCSv2
                         buffers[n].heading = BitConverter.ToUInt16(UdpDatas[n], 32) / 100.0;
                     }
                 }
-                /*
-                udpClient1.Client.ReceiveBufferSize = 4096;
-                udpClient2.Client.ReceiveBufferSize = 4096;
-                udpClient3.Client.ReceiveBufferSize = 4096;
-
-                UdpData1 = udpClient1.Receive(ref remoteIp);
-                //UdpData2 = udpClient2.Receive(ref remoteIp);
-                //UdpData3 = udpClient3.Receive(ref remoteIp);
-                
-                if (UdpData1[5] == 33)
-                {
-                    buffer1.time = BitConverter.ToUInt32(UdpData1, 6);
-                    buffer1.lat = BitConverter.ToInt32(UdpData1, 10) / 10000000.0;
-                    buffer1.lng = BitConverter.ToInt32(UdpData1, 14) / 10000000.0;
-                    buffer1.height = BitConverter.ToInt32(UdpData1, 18) / 1000.0;
-                    buffer1.vx = BitConverter.ToInt16(UdpData1, 26) / 100.0;
-                    buffer1.vy = BitConverter.ToInt16(UdpData1, 28) / 100.0;
-                    buffer1.heading = BitConverter.ToUInt16(UdpData1, 32) / 100.0;
-                }
-
-                if (UdpData2[5] == 33)
-                {
-                    buffer2.time = BitConverter.ToUInt32(UdpData2, 6);
-                    buffer2.lat = BitConverter.ToInt32(UdpData2, 10) / 10000000.0;
-                    buffer2.lng = BitConverter.ToInt32(UdpData2, 14) / 10000000.0;
-                    buffer2.height = BitConverter.ToInt32(UdpData2, 18) / 1000.0;
-                    buffer2.vx = BitConverter.ToInt16(UdpData2, 26) / 100.0;
-                    buffer2.vy = BitConverter.ToInt16(UdpData2, 28) / 100.0;
-                    buffer2.heading = BitConverter.ToUInt16(UdpData2, 32) / 100.0;
-                }
-
-                if (UdpData3[5] == 33)
-                {
-                    buffer3.time = BitConverter.ToUInt32(UdpData3, 6);
-                    buffer3.lat = BitConverter.ToInt32(UdpData3, 10) / 10000000.0;
-                    buffer3.lng = BitConverter.ToInt32(UdpData3, 14) / 10000000.0;
-                    buffer3.height = BitConverter.ToInt32(UdpData3, 18) / 1000.0;
-                    buffer3.vx = BitConverter.ToInt16(UdpData3, 26) / 100.0;
-                    buffer3.vy = BitConverter.ToInt16(UdpData3, 28) / 100.0;
-                    buffer3.heading = BitConverter.ToUInt16(UdpData3, 32) / 100.0;
-                }
-                */
                 Thread.Sleep(10);
             }
+        }
+
+        private void checkBox1_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox1.Checked)
+                textBox2.ReadOnly = true;
+            else
+                textBox2.ReadOnly = false;
+        }
+
+        private void button6_Click(object sender, EventArgs e)
+        {
+            for (int n = 0; n < markers.Count; n++)
+            {
+                if(markers[n].Markers.Count == 0)
+                {
+                    double randomLat = 22.0 + (random.Next(931315, 1024875) / 1000000.0); //range:10km^2
+                    double randomLng = 120.0 + (random.Next(168747, 264191) / 1000000.0);
+                    PointLatLng latlng = new PointLatLng(randomLat, randomLng);
+                    GMapMarker waypoint = new GMarkerGoogle(latlng, GMarkerGoogleType.blue);
+                    waypoint.ToolTipText = Convert.ToString(planes[n].Id + "\n" + (markers[n].Markers.Count + 1));
+                    waypoint.ToolTip.Fill = Brushes.Transparent;
+                    waypoint.ToolTip.Offset = new Point(-30, -15);
+                    waypoint.ToolTip.Stroke.Color = Color.Transparent;
+                    waypoint.ToolTip.Foreground = Brushes.Black;
+                    waypoint.ToolTip.Font = new Font("Arial", 10);
+                    waypoint.ToolTipMode = MarkerTooltipMode.Always;
+                    waypoint.IsVisible = waypoint.IsMouseOver;
+                    markers[n].Markers.Add(waypoint);
+                    points[n].Add(latlng);
+
+                    dt[n].Rows.Add(new Object[] { markers[n].Markers.Count, (int)(latlng.Lat * 10000000), (int)(latlng.Lng * 10000000), 30, 0 });
+                }
+            }
+
+            comboBox1.Enabled = false;
         }
     }
 }
