@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using GMap.NET;
+using System.Windows.Media.Media3D;
 
 namespace GCSv2
 {
@@ -59,41 +60,62 @@ namespace GCSv2
             return (acceleration);
         }
 
-        public static double[] PF (int count, double[] Oxyz, List<double[]> Ixyz, double[] Txyz)
+        public static Vector3D PF (int count, Point3D Oxyz, List<Point3D> Ixyz, Point3D Txyz)
         {
             double Frep;
-            double[] repulsive = new double[3];
-            double[] attractive = new double[3];
-            double[] resultant = new double[3];
+            Vector3D repulsive = new Vector3D();
+            Vector3D attractive = new Vector3D();
+            Vector3D resultant = new Vector3D();
 
             for (int i = 0; i < count; i++)
             {
                 if(Ixyz[i]!=Oxyz)
                 {
-                    double distance = Math.Sqrt((Oxyz[0] - Ixyz[i][0]) * (Oxyz[0] - Ixyz[i][0]) + 
-                                                (Oxyz[1] - Ixyz[i][1]) * (Oxyz[1] - Ixyz[i][1]) + 
-                                                (Oxyz[2] - Ixyz[i][2]) * (Oxyz[2] - Ixyz[i][2]));
-
+                    double distance = Point3D.Subtract(Oxyz, Ixyz[i]).Length;
+                    
                     if (distance/1000 <= r)
                     {
-                        Frep = -(distance / 1000) + r;
-                        Frep *= 1000; 
+                        Frep = -(distance / 1000) * Math.Pow(Math.E, 0.5 * (distance / 1000) * (distance / 1000)) + r * Math.Pow(Math.E, 0.5 *r * r);
+                        Frep *= 1000;
 
-                        repulsive[0] += Frep * (Oxyz[0] - Ixyz[i][0]) / distance;
-                        repulsive[1] += Frep * (Oxyz[1] - Ixyz[i][1]) / distance;
-                        repulsive[2] += Frep * (Oxyz[2] - Ixyz[i][2]) / distance;
+                        repulsive += Frep * Point3D.Subtract(Oxyz, Ixyz[i]) / distance;
                     }
                 }
             }
-            attractive[0] = Txyz[0] - Oxyz[0];
-            attractive[1] = Txyz[1] - Oxyz[1];
-            attractive[2] = Txyz[2] - Oxyz[2];
-            
-            resultant[0] = attractive[0] + repulsive[0];
-            resultant[1] = attractive[1] + repulsive[1];
-            resultant[2] = attractive[2] + repulsive[2];
+            attractive = Point3D.Subtract(Txyz, Oxyz);
+
+            if (Vector3D.AngleBetween(attractive, repulsive) == 0)
+            {
+                repulsive.X *= Math.Cos(5 * Math.PI / 180);
+                repulsive.Y *= Math.Cos(5 * Math.PI / 180);
+            }
+               
+            resultant = Vector3D.Add(attractive, repulsive);
             
             return (resultant);
+        }
+
+        public static void threatenDetection(Point3D Po, Point3D Pi, Vector3D Vo, Vector3D Vi)
+        {
+            double normLength = new double();
+            double projectLength = new double();
+            double approachRate = new double();
+            Point3D nextPo = Point3D.Add(Po, Vo);
+            Point3D nextPi = Point3D.Add(Pi, Vi);
+
+            if (Point3D.Subtract(nextPo, nextPi).Length < Point3D.Subtract(Po, Pi).Length)
+            {
+                Vector3D Norm = Vector3D.CrossProduct(Vo, Vi);
+                normLength = Norm.Length;
+                projectLength = Vector3D.DotProduct(Point3D.Subtract(Po, Pi), Norm);
+                approachRate = Vector3D.Subtract(Vi, Vo).Length;
+            }
+
+            double time = Point3D.Subtract(Po, Pi).Length / approachRate;
+            double minDistance = projectLength / normLength;
+
+            if(time <= 40)
+                Console.WriteLine(time);
         }
     }
 }

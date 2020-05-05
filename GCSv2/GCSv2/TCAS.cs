@@ -43,7 +43,7 @@ namespace GCSv2
 
             theta = angleLimit(theta);
 
-            double phase = yaw - theta;
+            double phase = theta - yaw;
             phase = angleLimit(phase);
 
             double alpha = Math.Atan((speed2[0] - speed1[0]) / (speed2[1] - speed1[1]));
@@ -97,14 +97,17 @@ namespace GCSv2
             else
                 scale = 1;
 
-            if (speed != 0)
-                resizedTA = ScaleImage(originTA, (int)(originTA.Width * speed * scale), (int)(originTA.Height * speed * scale));
+            if(scale > 0.05 && scale < 4)
+            {
+                if (speed != 0)
+                    resizedTA = ScaleImage(originTA, (int)(originTA.Width * speed * scale), (int)(originTA.Height * speed * scale));
 
-            GMapMarker TA = new GMarkerGoogle(new PointLatLng(lat, lng), resizedTA);
-            TA.Offset = new Point(-resizedTA.Width / 2, -resizedTA.Height / 2);
+                GMapMarker TA = new GMarkerGoogle(new PointLatLng(lat, lng), resizedTA);
+                TA.Offset = new Point(-resizedTA.Width / 2, -resizedTA.Height / 2);
 
-            if (speed != 0)
-                overlay.Markers.Add(TA);
+                if (speed != 0)
+                    overlay.Markers.Add(TA);
+            }
         }
 
         public static Bitmap ScaleImage(Bitmap pBmp, int pWidth, int pHeight)

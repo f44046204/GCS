@@ -11,3 +11,16 @@ D:\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.CoreCompileInputs.cache
 D:\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.CopyComplete
 D:\GCSv2\GCSv2\obj\Debug\GCSv2.exe
 D:\GCSv2\GCSv2\obj\Debug\GCSv2.pdb
+C:\Users\User\GCS\GCSv2\GCSv2\bin\Debug\GCSv2.exe.config
+C:\Users\User\GCS\GCSv2\GCSv2\bin\Debug\GCSv2.exe
+C:\Users\User\GCS\GCSv2\GCSv2\bin\Debug\GCSv2.pdb
+C:\Users\User\GCS\GCSv2\GCSv2\bin\Debug\GMap.NET.Core.dll
+C:\Users\User\GCS\GCSv2\GCSv2\bin\Debug\GMap.NET.WindowsForms.dll
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.Form1.resources
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.Properties.Resources.resources
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.GenerateResource.cache
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.CoreCompileInputs.cache
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.csproj.CopyComplete
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.exe
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.pdb
+C:\Users\User\GCS\GCSv2\GCSv2\obj\Debug\GCSv2.csprojAssemblyReference.cache

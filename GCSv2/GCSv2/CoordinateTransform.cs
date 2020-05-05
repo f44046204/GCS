@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Windows.Media.Media3D;
 
 namespace GCSv2
 {
@@ -14,7 +15,7 @@ namespace GCSv2
         public static double[] orgllh = new double[3];
 
         //llh座標轉ecef座標
-        public static double[] llh2xyz(double lat, double lon, double h)
+        public static Point3D llh2xyz(double lat, double lon, double h)
         {
             double latRad = lat * Math.PI / 180.0;
             double lonRad = lon * Math.PI / 180.0;
@@ -33,11 +34,11 @@ namespace GCSv2
             var tmp2 = Math.Sqrt(1 - e * e * sinlat * sinlat);
             var z = (a * tmp * sinlat) / tmp2 + h * sinlat;
 
-            double[] xyz = new double[3];
+            Point3D xyz = new Point3D();
 
-            xyz[0] = x;
-            xyz[1] = y;
-            xyz[2] = z;
+            xyz.X = x;
+            xyz.Y = y;
+            xyz.Z = z;
 
             return xyz;
 
@@ -86,8 +87,8 @@ namespace GCSv2
         //llh座標轉ned座標
         public static double[] llh2ned(double lat, double lon, double h)
         {
-            double[] xyz = llh2xyz(lat, lon, h);
-            double[] enu = xyz2enu(xyz[0], xyz[1], xyz[2]);
+            Point3D xyz = llh2xyz(lat, lon, h);
+            double[] enu = xyz2enu(xyz.X, xyz.Y, xyz.Z);
             double[] ned = new double[3] { enu[1], enu[0], -enu[2] };
             return (ned);
         }

@@ -10,11 +10,14 @@ using GMap.NET.WindowsForms;
 using GMap.NET.WindowsForms.Markers;
 using System.Collections.Generic;
 using System.Data;
+using System.Windows.Media.Media3D;
 
 namespace GCSv2
 {
     public partial class Form1 : Form
     {
+        Record record = new Record();
+
         /*模擬用參數*/
         public double yawRate = 50.0;
         public double avgSpd = 10.0;
@@ -25,14 +28,15 @@ namespace GCSv2
         public List<GMapOverlay> markers = new List<GMapOverlay>();
         public List<GMapRoute> routes = new List<GMapRoute>();
         public List<List<PointLatLng>> points = new List<List<PointLatLng>>();
+        public GMapOverlay Warning = new GMapOverlay();
         /*模擬顯示*/
         public List<PointLatLng> simLLH = new List<PointLatLng>();
-        public List<double[]> simXYZ = new List<double[]>();
-        public List<double[]> simV = new List<double[]>();
         public List<double> yaw = new List<double>();
         public List<int> wp = new List<int>();
         Random random = new Random();
         public List<bool> isReached = new List<bool>();
+        public List<Point3D> simXYZ = new List<Point3D>();
+        public List<Vector3D> simV = new List<Vector3D>();
         /*飛行資訊*/
         public List<DataTable> dt = new List<DataTable>();
         public List<DataGridView> dataGridViews = new List<DataGridView>();
@@ -41,6 +45,7 @@ namespace GCSv2
         public List<byte[]> UdpDatas = new List<byte[]>();
         public List<int> ports = new List<int>();
         public List<Buffer> buffers = new List<Buffer>();
+        public DataTable FlightData = new DataTable();
 
         public Form1()
         {
@@ -58,6 +63,12 @@ namespace GCSv2
             gMapControl1.MinZoom = 3;
             gMapControl1.Zoom = 20;
             gMapControl1.ShowCenter = false;
+            gMapControl1.Overlays.Add(Warning);
+
+            FlightData.Columns.Add("ID", typeof(string));
+            FlightData.Columns.Add("Lat", typeof(double));
+            FlightData.Columns.Add("Lng", typeof(double));
+            FlightData.Columns.Add("Alt", typeof(double));
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -88,6 +99,9 @@ namespace GCSv2
             timer1.Enabled = false;
             timer1.Stop();
             dataGridView1.Rows.Clear();
+
+            Form1 myForm = new Form1();
+            myForm.Show();
         }
 
         private void timer1_Tick(object sender, EventArgs e)
@@ -182,8 +196,8 @@ namespace GCSv2
                 points.Add(new List<PointLatLng>());
                 simLLH.Add(new PointLatLng());
                 simLLH[simLLH.Count - 1] = latLng;
-                simXYZ.Add(new double[3]);
-                simV.Add(new double[3]);
+                simXYZ.Add(new Point3D());
+                simV.Add(new Vector3D());
                 yaw.Add(0.0);
                 wp.Add(0);
                 tabControl1.TabPages.Add(planes[planes.Count - 1].Id);
@@ -236,18 +250,14 @@ namespace GCSv2
             {
                 if (markers[n].Markers.Count > 0)
                 {
-                    double[] wpXYZ = new double[3];
+                    Point3D wpXYZ = new Point3D();
                     wpXYZ = CoordinateTransform.llh2xyz(markers[n].Markers[wp[n]].Position.Lat, markers[n].Markers[wp[n]].Position.Lng, 30);
                     simXYZ[n] = CoordinateTransform.llh2xyz(simLLH[n].Lat, simLLH[n].Lng, 30);
                     double wpAngle = Math.Atan((markers[n].Markers[wp[n]].Position.Lng - simLLH[n].Lng)
                                               /(markers[n].Markers[wp[n]].Position.Lat - simLLH[n].Lat)) * 180 / Math.PI;
-                    double plane2wp = Math.Sqrt((wpXYZ[0] - simXYZ[n][0]) * (wpXYZ[0] - simXYZ[n][0]) +
-                                                (wpXYZ[1] - simXYZ[n][1]) * (wpXYZ[1] - simXYZ[n][1]) +
-                                                (wpXYZ[2] - simXYZ[n][2]) * (wpXYZ[2] - simXYZ[n][2]));
+                    double plane2wp = Point3D.Subtract(wpXYZ, simXYZ[n]).Length;
 
-                    simV[n][0] = (wpXYZ[0] - simXYZ[n][0]) * avgSpd / plane2wp;
-                    simV[n][1] = (wpXYZ[1] - simXYZ[n][1]) * avgSpd / plane2wp;
-                    simV[n][2] = (wpXYZ[2] - simXYZ[n][2]) * avgSpd / plane2wp;
+                    simV[n] = Point3D.Subtract(wpXYZ, simXYZ[n]) * avgSpd / plane2wp;
                     
                     if (markers[n].Markers[wp[n]].Position.Lat - simLLH[n].Lat < 0)
                         wpAngle += 180;
@@ -288,9 +298,7 @@ namespace GCSv2
                         }
                         else
                         {
-                            for (int i = 0; i < 3; i++)
-                                simV[n][i] = 0;
-                            yaw[n] = 0;
+                            simV[n] *= 0;
                         }
                     }
 
@@ -301,18 +309,17 @@ namespace GCSv2
                         {
                             if (n != m)
                             {
-                                double distance = Math.Sqrt(Math.Pow((simXYZ[n][0] - simXYZ[m][0]), 2) +
-                                                    Math.Pow((simXYZ[n][1] - simXYZ[m][1]), 2) +
-                                                    Math.Pow((simXYZ[n][2] - simXYZ[m][2]), 2));
-                                Console.WriteLine(planes[n].Id + " to " + planes[m].Id + " distance is :" + distance);
+                                double distance = Math.Sqrt(Math.Pow((simXYZ[n].X - simXYZ[m].X), 2) +
+                                                       Math.Pow((simXYZ[n].Y - simXYZ[m].Y), 2) +
+                                                       Math.Pow((simXYZ[n].Z - simXYZ[m].Z), 2));
+                                //Console.WriteLine(planes[n].Id + " to " + planes[m].Id + " distance is :" + distance);
+                                CollisionAvoidance.threatenDetection(simXYZ[n], simXYZ[m], simV[n], simV[m]);
                             }
                         }
                         simV[n] = CollisionAvoidance.PF(planes.Count, simXYZ[n], simXYZ, wpXYZ);
 
-                        double V = Math.Sqrt(simV[n][0] * simV[n][0] + simV[n][1] * simV[n][1] + simV[n][2] * simV[n][2]);
-                        simV[n][0] *= avgSpd / V;
-                        simV[n][1] *= avgSpd / V;
-                        simV[n][2] *= avgSpd / V;
+                        double V = simV[n].Length;
+                        simV[n] *= avgSpd / V;
                     }
                     else
                         button6.PerformClick();
@@ -336,11 +343,9 @@ namespace GCSv2
                         }
                     }*/
 
-                    simXYZ[n][0] += simV[n][0];
-                    simXYZ[n][1] += simV[n][1];
-                    simXYZ[n][2] += simV[n][2];
+                    simXYZ[n] += simV[n];
                     
-                    double[] LLH = CoordinateTransform.xyz2llh(simXYZ[n][0], simXYZ[n][1], simXYZ[n][2]);
+                    double[] LLH = CoordinateTransform.xyz2llh(simXYZ[n].X, simXYZ[n].Y, simXYZ[n].Z);
                     PointLatLng latLng = new PointLatLng();
                     latLng.Lat = LLH[0];
                     latLng.Lng = LLH[1];
@@ -383,6 +388,7 @@ namespace GCSv2
                 }
 
                 Planes.NewWaypoint(isReached[n], 22.0 + (random.Next(931315, 1024875) / 1000000.0), 120.0 + (random.Next(168747, 264191) / 1000000.0), markers[n], planes[n], points[n], dt[n]);
+                //FlightData[n].Rows.Add(new Object[] { planes[n].Id, simLLH[n].Lat, simLLH[n].Lng, 30 });
             }
         }
 
@@ -406,6 +412,13 @@ namespace GCSv2
                     timer2.Stop();
                     dataGridView1.Rows.Clear();
                     button3.Text = "Start Mission";
+
+                    for (int n = 0; n < planes.Count; n++)
+                    {
+                        for (int m = 0; m < planes[n].Markers.Count; m++)
+                            FlightData.Rows.Add(new Object[] { planes[n].Id, planes[n].Markers[m].Position.Lat, planes[n].Markers[m].Position.Lng });
+                    }
+                    record.CreateCSVFile(FlightData, "Data.csv");  //寫入CSV檔
                 }
             }
             
@@ -462,6 +475,7 @@ namespace GCSv2
                         labels[labels.Count - 1].BackColor = Color.Transparent;
                         labels[labels.Count - 1].BringToFront();
                         labels[labels.Count - 1].Width = 200;
+                        
                     }
                     else
                         MessageBox.Show("UDPport already exists.");
@@ -480,8 +494,8 @@ namespace GCSv2
                     points.Add(new List<PointLatLng>());
                     simLLH.Add(new PointLatLng());
                     simLLH[simLLH.Count - 1] = new PointLatLng(randomLat, randomLng);
-                    simXYZ.Add(new double[3]);
-                    simV.Add(new double[3]);
+                    simXYZ.Add(new Point3D());
+                    simV.Add(new Vector3D());
                     yaw.Add(0.0);
                     wp.Add(0);
                     isReached.Add(false);
@@ -503,7 +517,7 @@ namespace GCSv2
                     dataGridViews[dataGridViews.Count - 1].Width = tabControl1.Width;
                     dataGridViews[dataGridViews.Count - 1].Height = tabControl1.Height;
                     dataGridViews[dataGridViews.Count - 1].BackgroundColor = Color.White;
-
+                    
                     labels[labels.Count - 1].Visible = true;
                     labels[labels.Count - 1].Text = planes[planes.Count - 1].Id + ":";
                     labels[labels.Count - 1].Parent = tabControl2.TabPages[0];
@@ -511,6 +525,7 @@ namespace GCSv2
                     labels[labels.Count - 1].BackColor = Color.Transparent;
                     labels[labels.Count - 1].BringToFront();
                     labels[labels.Count - 1].Width = 200;
+                    
                 }
             }
         }
@@ -597,5 +612,6 @@ namespace GCSv2
 
             comboBox1.Enabled = false;
         }
+        
     }
 }
