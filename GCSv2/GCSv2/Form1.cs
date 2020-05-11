@@ -28,7 +28,10 @@ namespace GCSv2
         public List<GMapOverlay> markers = new List<GMapOverlay>();
         public List<GMapRoute> routes = new List<GMapRoute>();
         public List<List<PointLatLng>> points = new List<List<PointLatLng>>();
+        /*碰撞預警*/
         public GMapOverlay Warning = new GMapOverlay();
+        public List<bool> isWarning = new List<bool>();
+        public List<double> distance2UAV = new List<double>();
         /*模擬顯示*/
         public List<PointLatLng> simLLH = new List<PointLatLng>();
         public List<double> yaw = new List<double>();
@@ -37,6 +40,7 @@ namespace GCSv2
         public List<bool> isReached = new List<bool>();
         public List<Point3D> simXYZ = new List<Point3D>();
         public List<Vector3D> simV = new List<Vector3D>();
+        public int time = 0;
         /*飛行資訊*/
         public List<DataTable> dt = new List<DataTable>();
         public List<DataGridView> dataGridViews = new List<DataGridView>();
@@ -45,7 +49,7 @@ namespace GCSv2
         public List<byte[]> UdpDatas = new List<byte[]>();
         public List<int> ports = new List<int>();
         public List<Buffer> buffers = new List<Buffer>();
-        public DataTable FlightData = new DataTable();
+        public DataTable FlightDistanceData = new DataTable();
 
         public Form1()
         {
@@ -64,11 +68,6 @@ namespace GCSv2
             gMapControl1.Zoom = 20;
             gMapControl1.ShowCenter = false;
             gMapControl1.Overlays.Add(Warning);
-
-            FlightData.Columns.Add("ID", typeof(string));
-            FlightData.Columns.Add("Lat", typeof(double));
-            FlightData.Columns.Add("Lng", typeof(double));
-            FlightData.Columns.Add("Alt", typeof(double));
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -111,7 +110,7 @@ namespace GCSv2
                 double V = Math.Sqrt(buffers[n].vx * buffers[n].vx + buffers[n].vy * buffers[n].vy);
                 V = double.Parse(V.ToString("F2"));
 
-                Planes.AddPosition(buffers[n].lat, buffers[n].lng, planes[n].Id, buffers[n].heading, V, planes[n]);
+                Planes.AddPosition(buffers[n].lat, buffers[n].lng, planes[n].Id, buffers[n].heading, V, (int)gMapControl1.Zoom, planes[n]);
 
                 if (planes[n].Markers.Count > 1)
                 {
@@ -188,7 +187,7 @@ namespace GCSv2
                 planes.Add(new GMapOverlay(Name = textBox1.Text));
                 gMapControl1.Overlays.Add(planes[planes.Count - 1]);
                 PointLatLng latLng = gMapControl1.FromLocalToLatLng(e.X, e.Y);
-                Planes.AddPosition(latLng.Lat, latLng.Lng, textBox1.Text, 0, avgSpd, planes[planes.Count - 1]);
+                Planes.AddPosition(latLng.Lat, latLng.Lng, textBox1.Text, 0, avgSpd, (int)gMapControl1.Zoom, planes[planes.Count - 1]);
                 markers.Add(new GMapOverlay(Name = "markers" + planes.Count));
                 gMapControl1.Overlays.Add(markers[markers.Count - 1]);
                 dt.Add(new DataTable());
@@ -246,6 +245,7 @@ namespace GCSv2
         //模擬用計時器
         private void timer2_Tick(object sender, EventArgs e)
         {
+            //無人機顯示
             for (int n = 0; n < planes.Count; n++)
             {
                 if (markers[n].Markers.Count > 0)
@@ -297,52 +297,37 @@ namespace GCSv2
                             isReached[n] = false;
                         }
                         else
-                        {
                             simV[n] *= 0;
-                        }
                     }
 
                     //測試PF避障
                     if(isReached[n] == false)
                     {
-                        for (int m = 0; m < planes.Count; m++)
+                        for (int m = n; m < planes.Count; m++) //separation distance & time to collision surveillance
                         {
                             if (n != m)
                             {
-                                double distance = Math.Sqrt(Math.Pow((simXYZ[n].X - simXYZ[m].X), 2) +
-                                                       Math.Pow((simXYZ[n].Y - simXYZ[m].Y), 2) +
-                                                       Math.Pow((simXYZ[n].Z - simXYZ[m].Z), 2));
-                                //Console.WriteLine(planes[n].Id + " to " + planes[m].Id + " distance is :" + distance);
-                                CollisionAvoidance.threatenDetection(simXYZ[n], simXYZ[m], simV[n], simV[m]);
+                                int i = n * planes.Count - (n + 1) * n / 2 + (m - n) - 1; //第n台無人機與第m台無人機之代碼
+                                isWarning[i] = CollisionAvoidance.detectTTC(simXYZ[n], simXYZ[m], simV[n], simV[m]);
+                                distance2UAV[i] = Point3D.Subtract(simXYZ[n], simXYZ[m]).Length;
+                                
+                                if (isWarning[i] == true || distance2UAV[i]<=400)
+                                {
+                                    simV[n] = CollisionAvoidance.PF(planes.Count, simXYZ[n], simXYZ, wpXYZ);
+                                    double V = simV[n].Length;
+                                    simV[n] *= avgSpd / V;
+                                }
                             }
                         }
+                        /*
                         simV[n] = CollisionAvoidance.PF(planes.Count, simXYZ[n], simXYZ, wpXYZ);
 
                         double V = simV[n].Length;
-                        simV[n] *= avgSpd / V;
+                        simV[n] *= avgSpd / V;*/
                     }
                     else
                         button6.PerformClick();
-
-                    /*
-                    //測試MNDM避障
-                    double[] accXYZ = new double[3];
-                    for (int m = 0; m < planes.Count; m++)
-                    {
-                        if (n != m)
-                        {
-                            double distance = Math.Sqrt((simXYZ[n][0] - simXYZ[m][0]) * (simXYZ[n][0] - simXYZ[m][0]) +
-                                                        (simXYZ[n][1] - simXYZ[m][1]) * (simXYZ[n][1] - simXYZ[m][1]) +
-                                                        (simXYZ[n][2] - simXYZ[m][2]) * (simXYZ[n][2] - simXYZ[m][2]));
-                            Console.WriteLine(planes[n].Id + " to " + planes[m].Id + " distance is :" + distance);
-
-                            accXYZ = CollisionAvoidance.MNDM(planes.Count, simV[n], simXYZ[n], simXYZ);
-                            simV[n][0] += accXYZ[0];
-                            simV[n][1] += accXYZ[1];
-                            simV[n][2] += accXYZ[2];
-                        }
-                    }*/
-
+                    
                     simXYZ[n] += simV[n];
                     
                     double[] LLH = CoordinateTransform.xyz2llh(simXYZ[n].X, simXYZ[n].Y, simXYZ[n].Z);
@@ -353,7 +338,7 @@ namespace GCSv2
 
                     for (int i = 0; i < planes[n].Markers.Count; i++)
                         planes[n].Markers[i].IsVisible = false;
-                    Planes.AddPosition(simLLH[n].Lat, simLLH[n].Lng, planes[n].Id, yaw[n], avgSpd, planes[n]);
+                    Planes.AddPosition(simLLH[n].Lat, simLLH[n].Lng, planes[n].Id, yaw[n], avgSpd, (int)gMapControl1.Zoom, planes[n]);
                     //TCAS.TAbubble(simLLH[n].Lat, simLLH[n].Lng, avgSpd, (int)gMapControl1.Zoom, planes[n]);
 
                     //飛行軌跡
@@ -370,13 +355,19 @@ namespace GCSv2
                             planes[n].Markers.Insert(i, route);
                         }
                         
-                        if (planes[n].Markers.Count > 101)
+                        if (planes[n].Markers.Count > 51)
                         {
-                            for (int i = 0; i < planes[n].Markers.Count - 101; i++)
+                            for (int i = 0; i < planes[n].Markers.Count - 51; i++)
                                 planes[n].Markers[i].IsVisible = false;
                         }
                     }
 
+                    if(gMapControl1.Zoom < 14)
+                    {
+                        for (int i = 0; i < planes[n].Markers.Count - 1; i++)
+                            planes[n].Markers[i].IsVisible = false;
+                    }
+                        
                     labels[n].Text = planes[n].Id + ": distance to waypoint " + (wp[n]+1) + " is " + (int)plane2wp + " m";
                 }
                 if (dataGridView1.Rows.Count <= planes.Count)
@@ -387,21 +378,94 @@ namespace GCSv2
                     dataGridView1.Rows.Insert(n, new Object[] { planes[n].Id, simLLH[n].Lat, simLLH[n].Lng, 30, (int)yaw[n], avgSpd });
                 }
 
+                //Planes.NewWaypoint(isReached[n], random.Next(-90,90), random.Next(-180,180), markers[n], planes[n], points[n], dt[n]);
                 Planes.NewWaypoint(isReached[n], 22.0 + (random.Next(931315, 1024875) / 1000000.0), 120.0 + (random.Next(168747, 264191) / 1000000.0), markers[n], planes[n], points[n], dt[n]);
-                //FlightData[n].Rows.Add(new Object[] { planes[n].Id, simLLH[n].Lat, simLLH[n].Lng, 30 });
+                
+                if(time >= timer2.Interval * 5)
+                {
+                    DataRow dataRow = FlightDistanceData.NewRow();
+                    for (int i = 0; i < distance2UAV.Count; i++)
+                        dataRow[i] = distance2UAV[i];
+                    FlightDistanceData.Rows.Add(dataRow);
+                }
             }
+
+            //碰撞時間顯示
+            for (int i = 0; i < isWarning.Count; i++)
+            {
+                int k = i + 1;
+                int a = 1;
+                for (int n = 0; n < planes.Count; n++)
+                {
+                    if (k > planes.Count - (n + 1))
+                    {
+                        k -= planes.Count - (n + 1);
+                        a += 1;
+                    }
+                    else
+                        break;
+                }
+                int b = k + a;
+
+                if (isWarning[i] == true)
+                {
+                    double approachRate = Vector3D.Subtract(simV[a - 1], simV[b - 1]).Length;
+                    double time = Point3D.Subtract(simXYZ[a - 1], simXYZ[b - 1]).Length / approachRate;
+                    Point3D CPAo = simXYZ[a - 1] + simV[a - 1] * time;
+                    Point3D CPAi = simXYZ[b - 1] + simV[b - 1] * time;
+                    Point3D CPA = new Point3D((CPAo.X + CPAi.X) / 2, (CPAo.Y + CPAi.Y) / 2, (CPAo.Z + CPAi.Z) / 2);
+                    double[] LLH = CoordinateTransform.xyz2llh(CPA.X, CPA.Y, CPA.Z);
+                    PointLatLng CPAllh = new PointLatLng(LLH[0], LLH[1]);
+
+                    Warning.Markers[i].IsVisible = true;
+                    Warning.Markers[i].Position = CPAllh;
+                    Warning.Markers[i].ToolTipText = planes[a - 1].Id + " and " + planes[b - 1].Id + " TTC: " + (int)time + " sec";  //第a台飛機與第b台飛機的碰撞預警顯示
+                    Warning.Markers[i].ToolTipMode = MarkerTooltipMode.Always;
+                }
+                else
+                    Warning.Markers[i].IsVisible = false;
+
+                if (distance2UAV[i] <= 400)
+                    Console.WriteLine(planes[a - 1].Id + " and " + planes[b - 1].Id + " distance is too close." + " distance:" + (int)distance2UAV[i]);
+            }
+
+            time += timer2.Interval;
+            
         }
 
         private void button3_Click(object sender, EventArgs e)
         {
             if (button3.Text == "Start Mission")
             {
-                if(checkBox1.Checked)
+                if (checkBox1.Checked)
                 {
                     timer2.Enabled = true;
                     timer2.Start();
-                    timer2.Interval = 10;
+                    timer2.Interval = 100;
                     button3.Text = "Stop Mission";
+
+                    if(isWarning.Count == 0)
+                    {
+                        for (int i = 0; i < planes.Count * (planes.Count - 1) / 2; i++)
+                        {
+                            isWarning.Add(false);
+                            GMapMarker warn = new GMarkerGoogle(new PointLatLng(0, 0), GMarkerGoogleType.black_small);
+                            warn.IsVisible = false;
+                            Warning.Markers.Add(warn);
+                        }
+
+                        for (int n = 0; n < planes.Count; n++)
+                        {
+                            for (int m = n+1; m < planes.Count; m++)
+                                FlightDistanceData.Columns.Add(planes[n].Id + "&" + planes[m].Id, typeof(double));
+                        }
+                    }
+
+                    if (distance2UAV.Count == 0)
+                    {
+                        for (int i = 0; i < planes.Count * (planes.Count - 1) / 2; i++)
+                            distance2UAV.Add(new double());
+                    }
                 }
             }
             else
@@ -412,13 +476,8 @@ namespace GCSv2
                     timer2.Stop();
                     dataGridView1.Rows.Clear();
                     button3.Text = "Start Mission";
-
-                    for (int n = 0; n < planes.Count; n++)
-                    {
-                        for (int m = 0; m < planes[n].Markers.Count; m++)
-                            FlightData.Rows.Add(new Object[] { planes[n].Id, planes[n].Markers[m].Position.Lat, planes[n].Markers[m].Position.Lng });
-                    }
-                    record.CreateCSVFile(FlightData, "Data.csv");  //寫入CSV檔
+                    
+                    record.CreateCSVFile(FlightDistanceData, "Data.csv");  //寫入CSV檔
                 }
             }
             
@@ -486,7 +545,7 @@ namespace GCSv2
                     gMapControl1.Overlays.Add(planes[planes.Count - 1]);
                     double randomLat = 22.0 + (random.Next(931315, 1024875) / 1000000.0); //range:10km^2
                     double randomLng = 120.0 + (random.Next(168747, 264191) / 1000000.0);
-                    Planes.AddPosition(randomLat, randomLng, textBox1.Text, 0, avgSpd, planes[planes.Count - 1]);
+                    Planes.AddPosition(randomLat, randomLng, textBox1.Text, 0, avgSpd, (int)gMapControl1.Zoom, planes[planes.Count - 1]);
                     markers.Add(new GMapOverlay(Name = "markers" + planes.Count));
                     gMapControl1.Overlays.Add(markers[markers.Count - 1]);
                     dt.Add(new DataTable());
@@ -612,6 +671,22 @@ namespace GCSv2
 
             comboBox1.Enabled = false;
         }
-        
+
+        private void gMapControl1_OnMarkerClick(GMapMarker item, MouseEventArgs e)
+        {
+            for (int n = 0; n < planes.Count; n++)
+            {
+                if (item.Overlay == planes[n])
+                    gMapControl1.Position = planes[n].Markers[planes[n].Markers.Count - 1].Position;
+            }
+        }
+
+        private void checkBox2_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBox2.Checked)
+                Warning.IsVisibile = true;
+            else
+                Warning.IsVisibile = false;
+        }
     }
 }

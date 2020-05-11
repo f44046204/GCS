@@ -21,11 +21,18 @@ namespace GCSv2
         /* 不變常數宣告 */
         private static readonly double d2r = 0.01745329251994329576923690768489;
 
-        public static void AddPosition(double lat, double lng, string name, double heading, double speed, GMapOverlay overlay)
+        public static void AddPosition(double lat, double lng, string name, double heading, double speed,int zoom, GMapOverlay overlay)
         {
+            double scale = 1;
+            if (zoom >= 15)
+                scale = 1;
+            else if (zoom <= 15)
+                scale *= Math.Pow(0.5, Math.Min((15 - zoom), 3));
+
             //飛機的圖層
             Image srcPlane = Image.FromFile("drone2.png");
             Bitmap picPlane = GraphicRotateAtAny((Bitmap)srcPlane, srcPlane.Height / 2, srcPlane.Width / 2, heading);
+            picPlane = TCAS.ScaleImage(picPlane, (int)(picPlane.Width * scale), (int)(picPlane.Height * scale));
             picPlane.MakeTransparent(Color.Yellow);
 
             GMapMarker plane = new GMarkerGoogle(new PointLatLng(lat, lng), picPlane);

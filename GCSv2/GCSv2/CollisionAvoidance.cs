@@ -5,6 +5,9 @@ using System.Text;
 using System.Threading.Tasks;
 using GMap.NET;
 using System.Windows.Media.Media3D;
+using GMap.NET.WindowsForms;
+using GMap.NET.WindowsForms.Markers;
+using System.Drawing;
 
 namespace GCSv2
 {
@@ -83,11 +86,12 @@ namespace GCSv2
                 }
             }
             attractive = Point3D.Subtract(Txyz, Oxyz);
-
-            if (Vector3D.AngleBetween(attractive, repulsive) == 0)
+            
+            if(Vector3D.AngleBetween(attractive, repulsive) == 180)
             {
-                repulsive.X *= Math.Cos(5 * Math.PI / 180);
-                repulsive.Y *= Math.Cos(5 * Math.PI / 180);
+                repulsive.X = repulsive.X * Math.Cos(30 * Math.PI / 180) - repulsive.Y * Math.Sin(30 * Math.PI / 180);
+                repulsive.Y = repulsive.X * Math.Sin(30 * Math.PI / 180) + repulsive.Y * Math.Cos(30 * Math.PI / 180);
+                repulsive.Z *= Math.Cos(30 * Math.PI / 180);
             }
                
             resultant = Vector3D.Add(attractive, repulsive);
@@ -95,27 +99,24 @@ namespace GCSv2
             return (resultant);
         }
 
-        public static void threatenDetection(Point3D Po, Point3D Pi, Vector3D Vo, Vector3D Vi)
+        public static bool detectTTC(Point3D Po, Point3D Pi, Vector3D Vo, Vector3D Vi)
         {
-            double normLength = new double();
-            double projectLength = new double();
+            bool isWarn;
             double approachRate = new double();
             Point3D nextPo = Point3D.Add(Po, Vo);
             Point3D nextPi = Point3D.Add(Pi, Vi);
 
             if (Point3D.Subtract(nextPo, nextPi).Length < Point3D.Subtract(Po, Pi).Length)
-            {
-                Vector3D Norm = Vector3D.CrossProduct(Vo, Vi);
-                normLength = Norm.Length;
-                projectLength = Vector3D.DotProduct(Point3D.Subtract(Po, Pi), Norm);
                 approachRate = Vector3D.Subtract(Vi, Vo).Length;
-            }
 
             double time = Point3D.Subtract(Po, Pi).Length / approachRate;
-            double minDistance = projectLength / normLength;
+            //double minDistance = projectLength / normLength;
 
-            if(time <= 40)
-                Console.WriteLine(time);
+            if (time <= 40)
+                isWarn = true;
+            else
+                isWarn = false;
+            return (isWarn);
         }
     }
 }
